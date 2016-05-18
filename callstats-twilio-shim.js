@@ -6,6 +6,8 @@
 
     this.callStats = callstats;
     this.pcQueue = [];
+    this.intialized = false;
+    this.errQueue = [];
 
     var twilioErrorCodes = {
       createOfferAnswerErrorCode: 31000,
@@ -16,25 +18,51 @@
 
     function sendCachedAddNewFabricEvents() {
       var pc;
-      while(CallstatsTwilio.pcQueue.length !== 0){
-        pc = CallstatsTwilio.pcQueue.pop();
-        CallstatsTwilio.callStats.addNewFabric(pc, CallstatsTwilio.remoteUserID, CallstatsTwilio.callStats.fabricUsage.multiplex, CallstatsTwilio.conferenceID, CallstatsTwilio.csCallback);
+      if(CallstatsTwilio.remoteUserID !== null && CallstatsTwilio.remoteUserID !== undefined && CallstatsTwilio.intialized) {
+        while(CallstatsTwilio.pcQueue.length !== 0){
+          pc = CallstatsTwilio.pcQueue.pop();
+          CallstatsTwilio.callStats.addNewFabric(pc, CallstatsTwilio.remoteUserID, CallstatsTwilio.callStats.fabricUsage.multiplex, CallstatsTwilio.conferenceID, CallstatsTwilio.csCallback);
+        }
       }
     }
+
+    function sendCachedErrorEvents() {
+      var err;
+      if(CallstatsTwilio.conferenceID !== null && CallstatsTwilio.conferenceID !== undefined && CallstatsTwilio.intialized) {
+        while(CallstatsTwilio.errQueue.length !== 0){
+          err = CallstatsTwilio.errQueue.pop();
+          sendErrorReport(err.errorType, err.errorMessage);
+        }
+      }
+    }
+
+    function sendCachedEvents() {
+      sendCachedAddNewFabricEvents();
+      sendCachedErrorEvents();
+    }
+
+    function sendErrorReport(errorType, errorMessage) {
+      if(CallstatsTwilio.conferenceID !== null && CallstatsTwilio.conferenceID !== undefined) {
+        CallstatsTwilio.callStats.reportError(null, CallstatsTwilio.conferenceID, errorType, errorMessage);
+      } else {
+        CallstatsTwilio.errQueue.push({errorType: errorType, errorMessage: errorMessage});
+      }
+    }
+
     // We dont have pc in the error callback. So what to do in this situation????
     function handleError(error) {
       if (error.code === twilioErrorCodes.createOfferAnswerErrorCode) {
         if (error.message.includes("offer")){
-          CallstatsTwilio.callStats.reportError(null, CallstatsTwilio.conferenceID, CallstatsTwilio.callStats.webRTCFunctions.createOffer, error.message);
+          sendErrorReport(CallstatsTwilio.callStats.webRTCFunctions.createOffer, error.message);
         } else if (error.message.includes("answer")) {
-          CallstatsTwilio.callStats.reportError(null, CallstatsTwilio.conferenceID, CallstatsTwilio.callStats.webRTCFunctions.createAnswer, error.message);
+          sendErrorReport(CallstatsTwilio.callStats.webRTCFunctions.createAnswer, error.message);
         } else {
-          CallstatsTwilio.callStats.reportError(null, CallstatsTwilio.conferenceID, CallstatsTwilio.callStats.webRTCFunctions.signalingError, error.message);
+          sendErrorReport(CallstatsTwilio.callStats.webRTCFunctions.signalingError, error.message);
         }
       } else if (error.code === twilioErrorCodes.getUserMediaErrorCode1 || error.code === twilioErrorCodes.getUserMediaErrorCode2) {
-        CallstatsTwilio.callStats.reportError(null, CallstatsTwilio.conferenceID, CallstatsTwilio.callStats.webRTCFunctions.getUserMedia, error.message);
+        sendErrorReport(CallstatsTwilio.callStats.webRTCFunctions.getUserMedia, error.message);
       } else if (error.code === twilioErrorCodes.iceFailureErrorCode) {
-        CallstatsTwilio.callStats.reportError(null, CallstatsTwilio.conferenceID, CallstatsTwilio.callStats.webRTCFunctions.iceConnectionFailure, error.message);
+        sendErrorReport(CallstatsTwilio.callStats.webRTCFunctions.iceConnectionFailure, error.message);
       }
     }
 
@@ -49,6 +77,8 @@
       this.csInitCallback = csInitCallback;
       this.csCallback = csCallback;
       this.callStats.initialize(appID, appSecret, localUserID, csInitCallback, csCallback, params);
+      this.intialized = true;
+      sendCachedAddNewFabricEvents();
     };
 
     CallstatsTwilioShim.prototype.setCallParams = function setRemoteUserID(remoteUserID, conferenceID) {
@@ -68,7 +98,7 @@
 
     Twilio.Device.connect(function(conn) {
       //console.log("Successfully established call ", conn, CallstatsTwilio.remoteUserID);
-      if(CallstatsTwilio.remoteUserID !== null && CallstatsTwilio.remoteUserID !== undefined) {
+      if(CallstatsTwilio.remoteUserID !== null && CallstatsTwilio.remoteUserID !== undefined && CallstatsTwilio.intialized) {
         CallstatsTwilio.callStats.addNewFabric(conn.mediaStream.version.pc, CallstatsTwilio.remoteUserID, CallstatsTwilio.callStats.fabricUsage.multiplex, CallstatsTwilio.conferenceID, CallstatsTwilio.csCallback);
       } else {
         CallstatsTwilio.pcQueue.push(conn.mediaStream.version.pc);
