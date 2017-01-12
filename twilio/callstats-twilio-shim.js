@@ -121,7 +121,7 @@
       return  global.CallstatsTwilio;
     });
   } else { /* Browsers and Web Workers*/
-    var callStats = new callstats(null, io, jsSHA);
+    var callStats = new callstats();
     global.CallstatsTwilio = new CallstatsTwilioShim(callStats);
   }
 }(this));
