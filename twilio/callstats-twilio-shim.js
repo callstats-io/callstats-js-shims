@@ -79,6 +79,7 @@
       this.callStats.initialize(appID, appSecret, localUserID, csInitCallback, csCallback, params);
       this.intialized = true;
       sendCachedAddNewFabricEvents();
+      return this.callStats;
     };
 
     CallstatsTwilioShim.prototype.setCallParams = function setRemoteUserID(remoteUserID, conferenceID) {
