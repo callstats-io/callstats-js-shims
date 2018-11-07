@@ -66,11 +66,26 @@
       }
     }
 
+    function initializeTwilioDevice(twilioDevice) {
+      twilioDevice.error(function(error) {
+        handleError(error);
+      });
+
+      twilioDevice.connect(function(conn) {
+        if(CallstatsTwilio.remoteUserID !== null && CallstatsTwilio.remoteUserID !== undefined) {
+          CallstatsTwilio.callStats.addNewFabric(conn.mediaStream.version.pc, CallstatsTwilio.remoteUserID, CallstatsTwilio.callStats.fabricUsage.multiplex, CallstatsTwilio.conferenceID, CallstatsTwilio.csCallback);
+        } else {
+          console.log("[Error] remoteUserID is null")
+        }
+      });
+    }
+
     CallstatsTwilioShim.prototype.setLocalUserID = function setLocalUserID(localUserID) {
       this.localUserID = localUserID;
     };
 
-    CallstatsTwilioShim.prototype.initialize = function initialize(appID, appSecret, localUserID, params, csInitCallback, csCallback) {
+    CallstatsTwilioShim.prototype.initialize = function initialize(appID, appSecret, localUserID, params,
+      csInitCallback, csCallback, twilioDevice) {
       this.callstatsAppID = appID;
       this.callstatsAppSecret = appSecret;
       this.localUserID = localUserID;
@@ -78,6 +93,9 @@
       this.csCallback = csCallback;
       this.callStats.initialize(appID, appSecret, localUserID, csInitCallback, csCallback, params);
       this.intialized = true;
+      if (twilioDevice) {
+        initializeTwilioDevice(twilioDevice);
+      }
       sendCachedAddNewFabricEvents();
       return this.callStats;
     };
@@ -88,30 +106,16 @@
       sendCachedAddNewFabricEvents();
     };
 
-    Twilio.Device.ready(function(device) {
-      //console.log("Client is ready ", device);
-    });
-
     Twilio.Device.error(function(error) {
-      //console.log("Error: ", error.message);
       handleError(error);
     });
 
     Twilio.Device.connect(function(conn) {
-      //console.log("Successfully established call ", conn, CallstatsTwilio.remoteUserID);
       if(CallstatsTwilio.remoteUserID !== null && CallstatsTwilio.remoteUserID !== undefined && CallstatsTwilio.intialized) {
         CallstatsTwilio.callStats.addNewFabric(conn.mediaStream.version.pc, CallstatsTwilio.remoteUserID, CallstatsTwilio.callStats.fabricUsage.multiplex, CallstatsTwilio.conferenceID, CallstatsTwilio.csCallback);
       } else {
         CallstatsTwilio.pcQueue.push(conn.mediaStream.version.pc);
       }
-    });
-
-    Twilio.Device.disconnect(function(conn) {
-      //console.log("Call ended ", conn);
-    });
-
-    Twilio.Device.incoming(function(conn) {
-      //console.log("Incoming connection from ", conn);
     });
 
     return this;
