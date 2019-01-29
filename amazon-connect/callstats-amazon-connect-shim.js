@@ -10,12 +10,6 @@ var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
     function subscribeToAmazonContactEvents(contact) {
       console.log('incoming or outgoing ', contact.isInbound());
       CallstatsAmazonShim.remoteId = contact.getActiveInitialConnection().getEndpoint().phoneNumber + "";
-      if (contact.getActiveInitialConnection()
-          && contact.getActiveInitialConnection().getEndpoint()) {
-          console.log("New contact is from " + contact.getActiveInitialConnection().getEndpoint().phoneNumber);
-      } else {
-          console.log("This is an existing contact for this agent");
-      }
       contact.onSession(handleSessionCreated);
     }
 
@@ -39,31 +33,10 @@ var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
       }
     }
 
-    function getStats(pc) {
-      if (pc) {
-        pc.getStats()
-        .then(rawStats => {
-          console.log("stats result 1", rawStats);
-          if (rawStats && rawStats.forEach) {
-            results = [];
-            rawStats.forEach(function(item) {
-              results.push(item);
-            });
-          }
-          console.log("stats result", JSON.stringify(results));
-        }).catch(err => {console.log("error "),err});
-      }
-    }
-
     function handleSessionCreated(session) {
-      console.log('handleSessionCreated handleSessionCreated');
       var confId = CallstatsAmazonShim.localUserID + ":" + CallstatsAmazonShim.remoteId;
       var pc = session._pc;
       try {
-        setInterval(function() {
-          getStats(pc);
-        }, 1000);
-        console.log("*************** calling addNewFabric");
         CallstatsAmazonShim.callstats.addNewFabric(pc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex, confId);
       } catch(error) {
         console.log('addNewFabric error ', error);
@@ -76,7 +49,6 @@ var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
       CallstatsAmazonShim.localUserID = localUserID;
       CallstatsAmazonShim.csInitCallback = csInitCallback;
       CallstatsAmazonShim.csCallback = csCallback;
-      console.log("************ initialize");
       CallstatsAmazonShim.callstats.initialize(appID, appSecret, localUserID, csInitCallback, csCallback, params);
       CallstatsAmazonShim.intialized = true;
       connect.contact(subscribeToAmazonContactEvents);
