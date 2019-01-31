@@ -1,6 +1,3 @@
-/*globals Twilio:false, callstats:false, CallstatsTwilio:false */
-/*jshint unused:false*/
-
 /*! callstats Amazon SHIM version = 1.0.0 */
 
 (function (global) {
