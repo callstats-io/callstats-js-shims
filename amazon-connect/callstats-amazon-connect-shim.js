@@ -12,9 +12,9 @@
 
     function subscribeToAmazonContactEvents(contact) {
       CallstatsAmazonShim.remoteId = contact.getActiveInitialConnection().getEndpoint().phoneNumber + "";
-      if (contact.getActiveInitialConnection()
-        && contact.getActiveInitialConnection().getType()) {
-          callType = contact.getActiveInitialConnection().getType();
+      callType = contact.getActiveInitialConnection().getType();
+      if (!callType) {
+        callType = contact.isInbound()?"inbound":"outbound";
       }
       contact.onSession(handleSessionCreated);
     }
