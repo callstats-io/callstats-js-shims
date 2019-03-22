@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.0.1 */
+/*! callstats Amazon SHIM version = 1.0.2 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -6,15 +6,14 @@
     // pc is available in this functional scope
     var pc = undefined;
     var confId;
-    var callType;
     var SoftphoneErrorTypes;
     var RTCErrorTypes;
 
     function subscribeToAmazonContactEvents(contact) {
       CallstatsAmazonShim.remoteId = contact.getActiveInitialConnection().getEndpoint().phoneNumber + "";
-      callType = contact.getActiveInitialConnection().getType();
-      if (!callType) {
-        callType = contact.isInbound()?"inbound":"outbound";
+      CallstatsAmazonShim.callType = contact.getActiveInitialConnection().getType();
+      if (!CallstatsAmazonShim.callType) {
+        CallstatsAmazonShim.callType = contact.isInbound()?"inbound":"outbound";
       }
       contact.onSession(handleSessionCreated);
     }
@@ -53,21 +52,15 @@
         CallstatsAmazonShim.callstats.reportError(null, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.signalingError, error);
       } else if (error.errorType === SoftphoneErrorTypes.SIGNALLING_HANDSHAKE_FAILURE) {
         CallstatsAmazonShim.callstats.reportError(pc, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.setLocalDescription, error);
-        if (callType) {
-          CallstatsAmazonShim.callstats.sendCallDetails(pc, conferenceId, {callType: callType, role: 'agent'});
-        }
+        CallstatsAmazonShim.callstats.sendCallDetails(pc, conferenceId, {callType: CallstatsAmazonShim.callType, role: 'agent'});
       } else if (error.errorType === SoftphoneErrorTypes.ICE_COLLECTION_TIMEOUT) {
         CallstatsAmazonShim.callstats.reportError(pc, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.iceConnectionFailure, error);
-        if (callType) {
-          CallstatsAmazonShim.callstats.sendCallDetails(pc, conferenceId, {callType: callType, role: 'agent'});
-        }
+        CallstatsAmazonShim.callstats.sendCallDetails(pc, conferenceId, {callType: CallstatsAmazonShim.callType, role: 'agent'});
       } else if (error.errorType === SoftphoneErrorTypes.WEBRTC_ERROR) {
         switch(error.endPointUrl) {
           case RTCErrorTypes.SET_REMOTE_DESCRIPTION_FAILURE:
             CallstatsAmazonShim.callstats.reportError(pc, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.setRemoteDescription, error);
-            if (callType) {
-              CallstatsAmazonShim.callstats.sendCallDetails(pc, conferenceId, {callType: callType, role: 'agent'});
-            }
+            CallstatsAmazonShim.callstats.sendCallDetails(pc, conferenceId, {callType: CallstatsAmazonShim.callType, role: 'agent'});
             break;
         }
       }
@@ -81,9 +74,7 @@
       } catch(error) {
         console.log('addNewFabric error ', error);
       }
-      if (callType) {
-        CallstatsAmazonShim.callstats.sendCallDetails(pc, confId, {callType: callType, role: 'agent'});
-      }
+      CallstatsAmazonShim.callstats.sendCallDetails(pc, confId, {callType: CallstatsAmazonShim.callType, role: 'agent'});
     }
 
     CallstatsAmazonShim.prototype.initialize = function initialize(connect, appID, appSecret, localUserID, params, csInitCallback, csCallback) {
@@ -115,12 +106,12 @@
       CallstatsAmazonShim.callstats.sendFabricEvent(pc, fabricEvent, confId, eventData);
     };
 
-    CallstatsAmazonShim.prototype.sendLogs = function sendLogs(confId, domError) {
+    CallstatsAmazonShim.prototype.sendLogs = function sendLogs(domError) {
       if (!pc || !confId) {
         return;
       }
       CallstatsAmazonShim.callstats.reportError(pc, confId,
-        CallstatsAmazonShim.callStats.webRTCFunctions.applicationError, domError);
+        CallstatsAmazonShim.callstats.webRTCFunctions.applicationError, domError);
     };
   };
   if (("function" === typeof define) && (define.amd)) { /* AMD support */
