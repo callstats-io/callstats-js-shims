@@ -4,7 +4,7 @@
   var CallstatsAmazonShim = function(callstats) {
     CallstatsAmazonShim.callstats = callstats;
     // pc is available in this functional scope
-    var pc = undefined;
+    var pc = null;
     var confId;
     var SoftphoneErrorTypes;
     var RTCErrorTypes;
@@ -94,6 +94,7 @@
 
     CallstatsAmazonShim.prototype.sendUserFeedback = function sendUserFeedback(feedback, callback) {
       if (!confId) {
+        console.warn('Cannot send user feedback, no active conference found');
         return;
       }
       CallstatsAmazonShim.callstats.sendUserFeedback(confId, feedback, callback);
@@ -107,7 +108,8 @@
     };
 
     CallstatsAmazonShim.prototype.sendLogs = function sendLogs(domError) {
-      if (!pc || !confId) {
+      if (!confId) {
+        console.warn('Cannot send logs, no active conference found');
         return;
       }
       CallstatsAmazonShim.callstats.reportError(pc, confId,
