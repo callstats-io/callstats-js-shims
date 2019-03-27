@@ -13,6 +13,9 @@
       confId = contact.getContactId();
       CallstatsAmazonShim.remoteId = contact.getActiveInitialConnection().getEndpoint().phoneNumber + "";
       CallstatsAmazonShim.callType = contact.getActiveInitialConnection().getType();
+      if (!confId) {
+        confId = CallstatsAmazonShim.localUserID + ":" + CallstatsAmazonShim.remoteId;
+      }
       if (!CallstatsAmazonShim.callType) {
         CallstatsAmazonShim.callType = contact.isInbound()?"inbound":"outbound";
       }
@@ -45,7 +48,7 @@
       }
       var conferenceId = confId;
       if (!conferenceId) {
-        conferenceId= localId + ":" + (CallstatsAmazonShim.remoteId || localId);
+        conferenceId= CallstatsAmazonShim.localUserID + ":" + (CallstatsAmazonShim.remoteId || CallstatsAmazonShim.localUserID);
       }
       if (error.errorType === SoftphoneErrorTypes.MICROPHONE_NOT_SHARED) {
         CallstatsAmazonShim.callstats.reportError(null, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.getUserMedia, error);
