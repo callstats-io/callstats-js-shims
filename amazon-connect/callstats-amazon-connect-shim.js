@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.0.3 */
+/*! callstats Amazon SHIM version = 1.0.4 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -10,6 +10,7 @@
     var RTCErrorTypes;
 
     function subscribeToAmazonContactEvents(contact) {
+      confId = contact.getContactId();
       CallstatsAmazonShim.remoteId = contact.getActiveInitialConnection().getEndpoint().phoneNumber + "";
       CallstatsAmazonShim.callType = contact.getActiveInitialConnection().getType();
       if (!CallstatsAmazonShim.callType) {
@@ -67,7 +68,6 @@
     }
 
     function handleSessionCreated(session) {
-      confId = CallstatsAmazonShim.localUserID + ":" + CallstatsAmazonShim.remoteId;
       pc = session._pc;
       try {
         CallstatsAmazonShim.callstats.addNewFabric(pc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex, confId);
