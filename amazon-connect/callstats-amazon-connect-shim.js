@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.0.3 */
+/*! callstats Amazon SHIM version = 1.0.4 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -10,8 +10,12 @@
     var RTCErrorTypes;
 
     function subscribeToAmazonContactEvents(contact) {
+      confId = contact.getContactId();
       CallstatsAmazonShim.remoteId = contact.getActiveInitialConnection().getEndpoint().phoneNumber + "";
       CallstatsAmazonShim.callType = contact.getActiveInitialConnection().getType();
+      if (!confId) {
+        confId = CallstatsAmazonShim.localUserID + ":" + CallstatsAmazonShim.remoteId;
+      }
       if (!CallstatsAmazonShim.callType) {
         CallstatsAmazonShim.callType = contact.isInbound()?"inbound":"outbound";
       }
@@ -44,7 +48,7 @@
       }
       var conferenceId = confId;
       if (!conferenceId) {
-        conferenceId= localId + ":" + (CallstatsAmazonShim.remoteId || localId);
+        conferenceId= CallstatsAmazonShim.localUserID + ":" + (CallstatsAmazonShim.remoteId || CallstatsAmazonShim.localUserID);
       }
       if (error.errorType === SoftphoneErrorTypes.MICROPHONE_NOT_SHARED) {
         CallstatsAmazonShim.callstats.reportError(null, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.getUserMedia, error);
@@ -67,7 +71,6 @@
     }
 
     function handleSessionCreated(session) {
-      confId = CallstatsAmazonShim.localUserID + ":" + CallstatsAmazonShim.remoteId;
       pc = session._pc;
       try {
         CallstatsAmazonShim.callstats.addNewFabric(pc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex, confId);
