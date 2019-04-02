@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.0.4 */
+/*! callstats Amazon SHIM version = 1.0.5 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
