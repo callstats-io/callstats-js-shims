@@ -84,7 +84,7 @@
 
     function handleSessionCreated(session) {
       pc = session._pc;
-      var fabricAttributes = {
+      const fabricAttributes = {
         remoteEndpointType:   CallstatsAmazonShim.callstats.endpointType.server,
       };
       try {
