@@ -84,8 +84,12 @@
 
     function handleSessionCreated(session) {
       pc = session._pc;
+      var fabricAttributes = {
+        remoteEndpointType:   CallstatsAmazonShim.callstats.endpointType.server,
+      };
       try {
-        CallstatsAmazonShim.callstats.addNewFabric(pc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex, confId);
+        CallstatsAmazonShim.callstats.addNewFabric(pc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex, 
+          confId, fabricAttributes);
       } catch(error) {
         console.log('addNewFabric error ', error);
       }
