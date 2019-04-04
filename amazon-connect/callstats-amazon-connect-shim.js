@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.0.4 */
+/*! callstats Amazon SHIM version = 1.0.5 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -103,7 +103,7 @@
       CallstatsAmazonShim.callstats.sendUserFeedback(confId, feedback, callback);
     };
 
-    CallstatsAmazonShim.prototype.sendFabricEvent = function sendFabricEvent(feedback, callback) {
+    CallstatsAmazonShim.prototype.sendFabricEvent = function sendFabricEvent(fabricEvent, eventData) {
       if (!pc || !confId) {
         return;
       }
@@ -118,6 +118,20 @@
       CallstatsAmazonShim.callstats.reportError(pc, confId,
         CallstatsAmazonShim.callstats.webRTCFunctions.applicationError, domError);
     };
+
+    CallstatsAmazonShim.prototype.makePrecallTest = function makePrecallTest(precallTestResultsCallback) {
+      if (!precallTestResultsCallback) {
+        console.warn('Cannot start precalltest, Invalid arguments');
+        return;
+      }
+
+      if (typeof precallTestResultsCallback !== 'function') {
+        console.warn('Cannot start precalltest, Invalid arguments');
+        return;
+      }
+      CallstatsAmazonShim.callstats.on("preCallTestResults", precallTestResultsCallback);
+      CallstatsAmazonShim.callstats.makePrecallTest();
+    }
   };
   if (("function" === typeof define) && (define.amd)) { /* AMD support */
   define('callstats-amazon-client', ['callstats'], function(callstats) {
