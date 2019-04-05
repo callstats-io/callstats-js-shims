@@ -25,7 +25,7 @@
       const contactQueueInfo = contact.getQueue();
       if (contactQueueInfo) {
         callDetails.contactQueue = contactQueueInfo.name;
-        callDetails.contactQueueId = contactQueueInfo.queueARN;
+        callDetails.contactQueueID = contactQueueInfo.queueARN;
       }
       contact.onSession(handleSessionCreated);
     }
@@ -36,7 +36,7 @@
       const routingProfileInfo = agent.getRoutingProfile();
       if (!routingProfileInfo) return;
       callDetails.routingProfile = routingProfileInfo.name;
-      callDetails.routingProfileId = routingProfileInfo.id;
+      callDetails.routingProfileID = routingProfileInfo.routingProfileId;
     }
 
     function handleOnMuteToggle(obj) {
