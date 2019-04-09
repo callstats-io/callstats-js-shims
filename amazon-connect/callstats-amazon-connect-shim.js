@@ -27,6 +27,7 @@
         callDetails.contactQueue = contactQueueInfo.name;
         callDetails.contactQueueID = contactQueueInfo.queueARN;
       }
+      callDetails.contactID = contact.getContactId();
       contact.onSession(handleSessionCreated);
     }
 
