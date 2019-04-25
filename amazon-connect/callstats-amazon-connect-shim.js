@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.0.5 */
+/*! callstats Amazon SHIM version = 1.0.6 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -15,6 +15,7 @@
     function subscribeToAmazonContactEvents(contact) {
       confId = contact.getContactId();
       CallstatsAmazonShim.remoteId = contact.getActiveInitialConnection().getEndpoint().phoneNumber + "";
+      callDetails.contactID = confId;
       callDetails.callType = contact.getActiveInitialConnection().getType();
       if (!confId) {
         confId = CallstatsAmazonShim.localUserID + ":" + CallstatsAmazonShim.remoteId;
@@ -27,7 +28,6 @@
         callDetails.contactQueue = contactQueueInfo.name;
         callDetails.contactQueueID = contactQueueInfo.queueARN;
       }
-      callDetails.contactID = contact.getContactId();
       contact.onSession(handleSessionCreated);
     }
 
