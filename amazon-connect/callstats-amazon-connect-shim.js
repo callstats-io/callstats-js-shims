@@ -60,6 +60,10 @@
         callDetails.contactQueue = contactQueueInfo.name;
         callDetails.contactQueueID = contactQueueInfo.queueARN;
       }
+      const attributes = contact.getAttributes();
+      if (attributes.AgentLocation){
+        callDetails.siteID = attributes.AgentLocation.value;
+      }
     }
 
     function subscribeToAmazonAgentEvents(agent) {
