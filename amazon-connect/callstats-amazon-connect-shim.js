@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.1.0 */
+/*! callstats Amazon SHIM version = 1.1.3 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -7,6 +7,7 @@
     var confId;
     var SoftphoneErrorTypes;
     var RTCErrorTypes;
+    var isCallDetailsSent = false;
     var callDetails = {
       role: "agent",
     }
@@ -60,10 +61,21 @@
         callDetails.contactQueue = contactQueueInfo.name;
         callDetails.contactQueueID = contactQueueInfo.queueARN;
       }
-      const attributes = contact.getAttributes();
-      if (attributes.AgentLocation){
-        callDetails.siteID = attributes.AgentLocation.value;
-      }
+      contact.onEnded(function() {
+        if (!isCallDetailsSent) {
+          CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
+          isCallDetailsSent = true;
+        }
+      });
+
+      contact.onConnected(function() {
+        const attributes1 = contact.getAttributes();
+        if (attributes1.AgentLocation) {
+          callDetails.siteID = attributes1.AgentLocation.value;
+        }
+        CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
+        isCallDetailsSent = true;
+      });
     }
 
     function subscribeToAmazonAgentEvents(agent) {
@@ -123,6 +135,7 @@
         return;
       }
       csioPc = pc;
+      isCallDetailsSent = false;
       const fabricAttributes = {
         remoteEndpointType:   CallstatsAmazonShim.callstats.endpointType.server,
       };
@@ -132,7 +145,6 @@
       } catch(error) {
         console.log('addNewFabric error ', error);
       }
-      CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
     }
 
     CallstatsAmazonShim.prototype.initialize = function initialize(connect, appID, appSecret, localUserID, params, csInitCallback, csCallback) {
