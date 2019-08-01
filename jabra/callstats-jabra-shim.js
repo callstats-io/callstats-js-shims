@@ -142,7 +142,6 @@
         console.log("CallstatsJabraShim: Jabra library initialized");
         if (installInfo.installationOk) {
           console.log("CallstatsJabraShim: Jabra Installation check succeded");
-          initJabraEventListeners();
         } else {
           console.error("CallstatsJabraShim: Browser SDK Installation incomplete. Please (re)install");
         }
@@ -173,11 +172,15 @@
       }
       CallstatsJabraShim.pc = pc;
       CallstatsJabraShim.conferenceID = conferenceID;
+      initJabraEventListeners();
     }
 
     CallstatsJabraShim.prototype.stopJabraMonitoring = function stopJabraMonitoring() {
       CallstatsJabraShim.pc = null;
       CallstatsJabraShim.conferenceID = null;
+      isTxSpeechStarted = false;
+      isRxSpeechStarted = false;
+      isCrossTalkStarted = false; 
     }
   };
 
