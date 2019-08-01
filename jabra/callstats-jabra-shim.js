@@ -107,7 +107,7 @@
         }
         sendCustomStats(noiseDb, exposureDb);
 
-        let volState = event.data[ID];
+        let volState = event.data["ID"];
         if (volState === "VOLUP TAP") {
           sendCustomEvent('volumeUp');
         } else if (volState === "VOLDOWN TAP") {
