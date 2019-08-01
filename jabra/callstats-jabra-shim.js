@@ -93,6 +93,7 @@
       });
 
       jabra.addEventListener("devlog", (event) => {
+        console.log('Devlog ', event);
         let noiseDb = undefined;
         let txLevelEvent = event.data["TX Acoustic Logging Level"];
         if (txLevelEvent !== undefined) {
@@ -105,6 +106,13 @@
           exposureDb = parseInt(rxLevelEvent);
         }
         sendCustomStats(noiseDb, exposureDb);
+
+        let volState = event.data[ID];
+        if (volState === "VOLUP TAP") {
+          sendCustomEvent('volumeUp');
+        } else if (volState === "VOLDOWN TAP") {
+          sendCustomEvent('volumeDown');
+        }
 
         let muteState = event.data["Mute State"];
         if (muteState === "TRUE") {
