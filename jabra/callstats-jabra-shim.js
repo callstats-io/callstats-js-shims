@@ -30,14 +30,6 @@
       }
 
       if (isTxSpeechStarted && isRxSpeechStarted) {
-        if (isTxSpeechStarted) {
-          isTxSpeechStarted = false;
-          sendCustomEvent('agentSpeakingStop');
-        }  
-        if (isRxSpeechStarted) {
-          isRxSpeechStarted = false;
-          sendCustomEvent('contactSpeakingStop');
-        }
         isCrossTalkStarted = true;
       } else if (isCrossTalkStarted && (isTxSpeechStarted || isRxSpeechStarted)) {
         isCrossTalkStarted = false;
