@@ -66,7 +66,7 @@
         stats.push(exposureDbStats)
       }
       if (stats.length > 0) {
-        CallstatsJabraShim.callstats.sendCustomStats(CallstatsJabraShim.pc, 
+        CallstatsJabraShim.callstats.sendCustomStats(null, 
           CallstatsJabraShim.conferenceID, stats);
       }
     }
@@ -75,7 +75,7 @@
       if (!CallstatsJabraShim.conferenceID) {
         return;
       }
-      CallstatsJabraShim.callstats.sendCustomEvent(CallstatsJabraShim.pc, 
+      CallstatsJabraShim.callstats.sendCustomEvent(null, 
         CallstatsJabraShim.conferenceID, {type: eventType});
     }
 
@@ -165,18 +165,16 @@
       initJabraLib();
     }
 
-    CallstatsJabraShim.prototype.startJabraMonitoring = function startJabraMonitoring(pc, conferenceID) {
+    CallstatsJabraShim.prototype.startJabraMonitoring = function startJabraMonitoring(conferenceID) {
       if (!conferenceID) {
         console.error('CallstatsJabraShim: Cannot startJabraMonitoring/Invalid Arguments');
         return;
       }
-      CallstatsJabraShim.pc = pc;
       CallstatsJabraShim.conferenceID = conferenceID;
       initJabraEventListeners();
     }
 
     CallstatsJabraShim.prototype.stopJabraMonitoring = function stopJabraMonitoring() {
-      CallstatsJabraShim.pc = null;
       CallstatsJabraShim.conferenceID = null;
       isTxSpeechStarted = false;
       isRxSpeechStarted = false;
