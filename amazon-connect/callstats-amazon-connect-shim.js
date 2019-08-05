@@ -82,8 +82,10 @@
       contact.onRefresh(currentContact => {
         // check the current hold state and pause or resume fabric based on current hold state
         const connection = currentContact.getActiveInitialConnection();
-        const isOnHold = connection && connection.isActive() && connection.isOnHold();
+        const isOnHold = !!(connection && connection.isActive() && connection.isOnHold());
         if (callInHold !== isOnHold) {
+          // there is a state toggle for hold state
+          callInHold = isOnHold;
           if (isOnHold) {
             CallstatsAmazonShim.callstats.sendFabricEvent(csioPc,
               CallstatsAmazonShim.callstats.fabricEvent.fabricHold, confId);
@@ -91,8 +93,6 @@
             CallstatsAmazonShim.callstats.sendFabricEvent(csioPc,
               CallstatsAmazonShim.callstats.fabricEvent.fabricResume, confId);
           }
-          // there is a state toggle for hold state
-          callInHold = isOnHold;
         }
       });
     }
