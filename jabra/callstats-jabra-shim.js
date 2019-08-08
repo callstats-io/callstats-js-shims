@@ -93,7 +93,6 @@
       });
 
       jabra.addEventListener("devlog", (event) => {
-        console.log('Devlog ', event);
         let noiseDb = undefined;
         let txLevelEvent = event.data["TX Acoustic Logging Level"];
         if (txLevelEvent !== undefined) {
