@@ -69,11 +69,11 @@
       });
 
       contact.onAccepted(function() {
-        callDetails.acceptedTimeStamp = getTimeStamp();
+        callDetails.acceptedTimestamp = getTimestamp();
       });
 
       contact.onConnected(function() {
-        callDetails.connectedTimeStamp = getTimeStamp();
+        callDetails.connectedTimestamp = getTimestamp();
         const attributes1 = contact.getAttributes();
         if (attributes1.AgentLocation) {
           callDetails.siteID = attributes1.AgentLocation.value;
@@ -152,7 +152,7 @@
       }
     }
 
-    function getTimeStamp() {
+    function getTimestamp() {
       if (!window || !window.performance || !window.performance.now) {
         return Date.now();
       }
