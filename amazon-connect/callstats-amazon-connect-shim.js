@@ -73,8 +73,8 @@
       });
 
       contact.onConnected(function() {
-        callDetails.connectedTimeStamp = 0;
-        const attributes1 = getTimeStamp();
+        callDetails.connectedTimeStamp = getTimeStamp();
+        const attributes1 = contact.getAttributes();
         if (attributes1.AgentLocation) {
           callDetails.siteID = attributes1.AgentLocation.value;
         }
