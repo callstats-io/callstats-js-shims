@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.1.4 */
+/*! callstats Amazon SHIM version = 1.1.5 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -68,8 +68,13 @@
         }
       });
 
+      contact.onAccepted(function() {
+        callDetails.acceptedTimeStamp = getTimeStamp();
+      });
+
       contact.onConnected(function() {
-        const attributes1 = contact.getAttributes();
+        callDetails.connectedTimeStamp = 0;
+        const attributes1 = getTimeStamp();
         if (attributes1.AgentLocation) {
           callDetails.siteID = attributes1.AgentLocation.value;
         }
@@ -145,6 +150,19 @@
       } catch(error) {
         console.log('addNewFabric error ', error);
       }
+    }
+
+    function getTimeStamp() {
+      if (!window || !window.performance || !window.performance.now) {
+        return Date.now();
+      }
+      if (!window.performance.timing) {
+        return Date.now();
+      }
+      if (!window.performance.timing.navigationStart) {
+        return Date.now();
+      }
+      return window.performance.now() + window.performance.timing.navigationStart;
     }
 
     CallstatsAmazonShim.prototype.initialize = function initialize(connect, appID, appSecret, localUserID, params, csInitCallback, csCallback) {
