@@ -8,7 +8,7 @@
     var SoftphoneErrorTypes;
     var RTCErrorTypes;
     var isCallDetailsSent = false;
-    var callInHold = false;
+    var callState = null;
     var callDetails = {
       role: "agent",
     }
@@ -76,23 +76,25 @@
         }
         CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
         isCallDetailsSent = true;
-        callInHold = false;
+        callState = null;
       });
 
       contact.onRefresh(currentContact => {
         // check the current hold state and pause or resume fabric based on current hold state
         const connection = currentContact.getActiveInitialConnection();
-        const isOnHold = !!(connection && connection.isActive() && connection.isOnHold());
-        if (callInHold !== isOnHold) {
-          // there is a state toggle for hold state
-          callInHold = isOnHold;
-          if (isOnHold) {
-            CallstatsAmazonShim.callstats.sendFabricEvent(csioPc,
-              CallstatsAmazonShim.callstats.fabricEvent.fabricHold, confId);
-          } else {
-            CallstatsAmazonShim.callstats.sendFabricEvent(csioPc,
-              CallstatsAmazonShim.callstats.fabricEvent.fabricResume, confId);
-          }
+        const currentStatus = connection ? connection.getStatus() : null;
+        if (!currentStatus || !currentStatus.type) {
+          return;
+        }
+        const currentCallState = currentStatus.type;
+        if (currentCallState === 'hold' && callState !== 'hold') {
+          callState = 'hold';
+          CallstatsAmazonShim.callstats.sendFabricEvent(csioPc,
+            CallstatsAmazonShim.callstats.fabricEvent.fabricHold, confId);
+        } else if(currentCallState === 'connected' && callState === 'hold') {
+          callState = 'connected';
+          CallstatsAmazonShim.callstats.sendFabricEvent(csioPc,
+            CallstatsAmazonShim.callstats.fabricEvent.fabricResume, confId);
         }
       });
     }
