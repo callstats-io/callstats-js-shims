@@ -25,7 +25,7 @@ function pcCallback (err, msg) {
 
 function preCallTestResultsCallback(status, results) {
   //Check the status
-  if (status == callStats.callStatsAPIReturnStatus.success) {
+  if (status === callStats.callStatsAPIReturnStatus.success) {
     //Results
     var connectivity = results.mediaConnectivity;
     var rtt = results.rtt;
