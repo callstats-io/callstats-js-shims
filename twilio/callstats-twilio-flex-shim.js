@@ -1,22 +1,18 @@
 var $callData = null;
 function isTwilioPC(pcConfig) {
-  console.warn('isTwilioPC ', pcConfig);
   if (!pcConfig) {
     return true;
   }
   if (pcConfig && !pcConfig.iceServers) {
-    console.warn('isTwilioPC true');
     return true;
   }
   var len = pcConfig.iceServers.length;
   for (var i = 0; i < len; i++) {
     var username = pcConfig.iceServers[i].username;
     if (username && username.includes('pct')) {
-      console.warn('isTwilioPC false');
       return false;
     }
   }
-  console.warn('isTwilioPC true');
   return true;
 }
 function pcCallback (err, msg) {
@@ -40,7 +36,6 @@ function preCallTestResultsCallback(status, results) {
 function initPCShim () {
   var origPeerConnection = window.RTCPeerConnection;
   window.RTCPeerConnection = function(pcConfig, pcConstraints) {
-    console.warn('creating RTCPeerConnection', pcConfig, pcConstraints);
     if (pcConfig && pcConfig.iceTransportPolicy) {
       pcConfig.iceTransports = pcConfig.iceTransportPolicy;
     }
@@ -51,11 +46,8 @@ function initPCShim () {
         let attemptToSendFabricData = 0; 
         const maxNoAttempt = 30;
         function attemptingtoSendData() {
-          console.warn('attemptingtoSendData attemptingtoSendData ', maxNoAttempt, $callData.task);
           if ($callData.task.defaultFrom && $callData.task.conference) {
             if ($callData.task.conference.conferenceSid) {
-              // sending fabric data
-              console.warn('****** addNewFabric');
               callStats.addNewFabric(pc, $callData.task.defaultFrom, callStats.fabricUsage.multiplex, $callData.task.conference.conferenceSid, null, pcCallback)
               var callDetails = {
                 contactID: $callData.task.conference.conferenceSid,

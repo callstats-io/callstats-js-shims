@@ -201,6 +201,7 @@
         console.error('CallstatsJabraShim: Cannot startJabraMonitoring/Invalid Arguments');
         return;
       }
+      eventList = [];
       CallstatsJabraShim.conferenceID = conferenceID;
       initJabraEventListeners();
     }
