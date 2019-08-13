@@ -95,7 +95,7 @@
       }
 
       eventList.push(event);
-      if (eventList.length === 50) {
+      if (eventList.length === 40) {
         CallstatsJabraShim.callstats.sendCustomEvent(null, 
           CallstatsJabraShim.conferenceID, eventList);
         
