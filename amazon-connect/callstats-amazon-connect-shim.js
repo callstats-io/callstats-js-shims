@@ -75,7 +75,7 @@
       contact.onConnected(function() {
         callDetails.connectedTimestamp = getTimestamp();
         const attributes1 = contact.getAttributes();
-        if (attributes1.AgentLocation) {
+        if (attributes1 && attributes1.AgentLocation) {
           callDetails.siteID = attributes1.AgentLocation.value;
         }
         CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
