@@ -5,6 +5,7 @@
     let isTxSpeechStarted = false;
     let isRxSpeechStarted = false;
     let isCrossTalkStarted = false;
+    let eventList = [];
 
     function sendJabraActiveState(txSpeech, rxSpeech) {
       if (txSpeech === undefined && rxSpeech === undefined) {
@@ -71,12 +72,35 @@
       }
     }
 
+    function getTimestamp() {
+      if (!window || !window.performance || !window.performance.now) {
+        return Date.now();
+      }
+      if (!window.performance.timing) {
+        return Date.now();
+      }
+      if (!window.performance.timing.navigationStart) {
+        return Date.now();
+      }
+      return window.performance.now() + window.performance.timing.navigationStart;
+    }
+
     function sendCustomEvent(eventType) {
       if (!CallstatsJabraShim.conferenceID) {
         return;
       }
-      CallstatsJabraShim.callstats.sendCustomEvent(null, 
-        CallstatsJabraShim.conferenceID, {type: eventType});
+      let event = {
+        type: eventType,
+        timestamp: getTimestamp(),
+      }
+
+      eventList.push(event);
+      if (eventList.length === 40) {
+        CallstatsJabraShim.callstats.sendCustomEvent(null, 
+          CallstatsJabraShim.conferenceID, eventList);
+        
+        eventList = [];
+      }
     }
 
     function initJabraEventListeners() {
@@ -93,7 +117,6 @@
       });
 
       jabra.addEventListener("devlog", (event) => {
-        console.log('Devlog ', event);
         let noiseDb = undefined;
         let txLevelEvent = event.data["TX Acoustic Logging Level"];
         if (txLevelEvent !== undefined) {
@@ -178,11 +201,18 @@
         console.error('CallstatsJabraShim: Cannot startJabraMonitoring/Invalid Arguments');
         return;
       }
+      eventList = [];
       CallstatsJabraShim.conferenceID = conferenceID;
       initJabraEventListeners();
     }
 
     CallstatsJabraShim.prototype.stopJabraMonitoring = function stopJabraMonitoring() {
+      if (eventList.length > 0) {
+        CallstatsJabraShim.callstats.sendCustomEvent(null, 
+          CallstatsJabraShim.conferenceID, eventList);
+        
+        eventList = [];
+      }
       CallstatsJabraShim.conferenceID = null;
       isTxSpeechStarted = false;
       isRxSpeechStarted = false;
