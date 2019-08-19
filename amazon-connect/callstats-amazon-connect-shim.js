@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.1.4 */
+/*! callstats Amazon SHIM version = 1.1.5 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -8,6 +8,7 @@
     var SoftphoneErrorTypes;
     var RTCErrorTypes;
     var isCallDetailsSent = false;
+    var callState = null;
     var callDetails = {
       role: "agent",
     }
@@ -75,6 +76,26 @@
         }
         CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
         isCallDetailsSent = true;
+        callState = null;
+      });
+
+      contact.onRefresh(currentContact => {
+        // check the current hold state and pause or resume fabric based on current hold state
+        const connection = currentContact.getActiveInitialConnection();
+        const currentStatus = connection ? connection.getStatus() : null;
+        if (!currentStatus || !currentStatus.type) {
+          return;
+        }
+        const currentCallState = currentStatus.type;
+        if (currentCallState === 'hold' && callState !== 'hold') {
+          callState = 'hold';
+          CallstatsAmazonShim.callstats.sendFabricEvent(csioPc,
+            CallstatsAmazonShim.callstats.fabricEvent.fabricHold, confId);
+        } else if(currentCallState === 'connected' && callState === 'hold') {
+          callState = 'connected';
+          CallstatsAmazonShim.callstats.sendFabricEvent(csioPc,
+            CallstatsAmazonShim.callstats.fabricEvent.fabricResume, confId);
+        }
       });
     }
 
