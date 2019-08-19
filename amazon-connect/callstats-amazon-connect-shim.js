@@ -69,9 +69,14 @@
         }
       });
 
+      contact.onAccepted(function() {
+        callDetails.acceptedTimestamp = getTimestamp();
+      });
+
       contact.onConnected(function() {
+        callDetails.connectedTimestamp = getTimestamp();
         const attributes1 = contact.getAttributes();
-        if (attributes1.AgentLocation) {
+        if (attributes1 && attributes1.AgentLocation) {
           callDetails.siteID = attributes1.AgentLocation.value;
         }
         CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
@@ -166,6 +171,19 @@
       } catch(error) {
         console.log('addNewFabric error ', error);
       }
+    }
+
+    function getTimestamp() {
+      if (!window || !window.performance || !window.performance.now) {
+        return Date.now();
+      }
+      if (!window.performance.timing) {
+        return Date.now();
+      }
+      if (!window.performance.timing.navigationStart) {
+        return Date.now();
+      }
+      return window.performance.now() + window.performance.timing.navigationStart;
     }
 
     CallstatsAmazonShim.prototype.initialize = function initialize(connect, appID, appSecret, localUserID, params, csInitCallback, csCallback) {
