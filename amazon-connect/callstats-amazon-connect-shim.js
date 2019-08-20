@@ -253,6 +253,15 @@
       CallstatsAmazonShim.callstats.on("preCallTestResults", precallTestResultsCallback);
       CallstatsAmazonShim.callstats.makePrecallTest();
     }
+
+    // workaround to get peer connection -> remote stream
+    CallstatsAmazonShim.prototype.getPeerConnection = function getPeerConnection() {
+      if (!csioPc || !confId) {
+        console.warn('Cannot get peer connection. no active conference found');
+        return;
+      }
+      return csioPc;
+    }
   };
   if (("function" === typeof define) && (define.amd)) { /* AMD support */
   define('callstats-amazon-client', ['callstats'], function(callstats) {
