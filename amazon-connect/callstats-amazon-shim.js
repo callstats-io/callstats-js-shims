@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.1.6 */
+/*! callstats Amazon SHIM version = 1.1.5 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -63,9 +63,7 @@
         callDetails.contactQueue = contactQueueInfo.name;
         callDetails.contactQueueID = contactQueueInfo.queueARN;
       }
-      if (collectJabraStats) {
-        CallstatsJabraShim.startJabraMonitoring(confId);
-      }
+      CallstatsJabraShim.startJabraMonitoring(confId);
       contact.onEnded(function() {
         if (!isCallDetailsSent) {
           CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
