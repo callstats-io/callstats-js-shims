@@ -1,4 +1,4 @@
-/*! callstats Jabra SHIM version = 1.0.0 */
+/*! callstats Jabra SHIM version = 1.1.0 */
 
 (function (global) {
   var CallstatsJabraShim = function() {
