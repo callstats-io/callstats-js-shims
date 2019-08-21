@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.1.5 */
+/*! callstats Amazon SHIM version = 1.1.6 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -9,6 +9,7 @@
     var RTCErrorTypes;
     var isCallDetailsSent = false;
     var callState = null;
+    var collectJabraStats = false;
     var callDetails = {
       role: "agent",
     }
@@ -62,10 +63,16 @@
         callDetails.contactQueue = contactQueueInfo.name;
         callDetails.contactQueueID = contactQueueInfo.queueARN;
       }
+      if (collectJabraStats) {
+        CallstatsJabraShim.startJabraMonitoring(confId);
+      }
       contact.onEnded(function() {
         if (!isCallDetailsSent) {
           CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
           isCallDetailsSent = true;
+        }
+        if (collectJabraStats) {
+          CallstatsJabraShim.stopJabraMonitoring();
         }
       });
 
@@ -196,6 +203,12 @@
       CallstatsAmazonShim.intialized = true;
 
       initPCShim();
+
+      if (params && params.enableJabraCollection) {
+        collectJabraStats = true;
+        CallstatsJabraShim.initialize(CallstatsAmazonShim.callstats);
+      }
+
       connect.contact(subscribeToAmazonContactEvents);
       connect.agent(subscribeToAmazonAgentEvents);
       SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
@@ -239,6 +252,15 @@
       }
       CallstatsAmazonShim.callstats.on("preCallTestResults", precallTestResultsCallback);
       CallstatsAmazonShim.callstats.makePrecallTest();
+    }
+
+    // workaround to get peer connection -> remote stream
+    CallstatsAmazonShim.prototype.getPeerConnection = function getPeerConnection() {
+      if (!csioPc || !confId) {
+        console.warn('Cannot get peer connection. no active conference found');
+        return;
+      }
+      return csioPc;
     }
   };
   if (("function" === typeof define) && (define.amd)) { /* AMD support */
