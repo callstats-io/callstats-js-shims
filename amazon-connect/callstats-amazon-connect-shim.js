@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.1.6 */
+/*! callstats Amazon SHIM version = 1.1.7 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -226,10 +226,19 @@
 
     CallstatsAmazonShim.prototype.sendFabricEvent = function sendFabricEvent(fabricEvent, eventData) {
       if (!csioPc || !confId) {
+        console.warn('Cannot send fabricEvent, no active conference found');
         return;
       }
       CallstatsAmazonShim.callstats.sendFabricEvent(csioPc, fabricEvent, confId, eventData);
     };
+
+    CallstatsAmazonShim.prototype.sendCustomEvent = function sendCustomEvent(eventList) {
+      if (!confId) {
+        console.warn('Cannot send customEvent, no active conference found');
+        return;
+      }
+      CallstatsAmazonShim.callstats.sendCustomEvent(null, confId, eventList);
+    }
 
     CallstatsAmazonShim.prototype.sendLogs = function sendLogs(domError) {
       if (!confId) {
