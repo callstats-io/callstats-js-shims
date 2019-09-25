@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.1.7 */
+/*! callstats Amazon SHIM version = 1.1.8 */
 
 (function (global) {
   var CallstatsAmazonShim = function(callstats) {
@@ -50,6 +50,7 @@
     function subscribeToAmazonContactEvents(contact) {
       confId = contact.getContactId();
       CallstatsAmazonShim.remoteId = contact.getActiveInitialConnection().getEndpoint().phoneNumber + "";
+      callDetails.originalContactID = contact.getOriginalContactId();
       callDetails.contactID = confId;
       callDetails.callType = contact.getActiveInitialConnection().getType();
       if (!confId) {
