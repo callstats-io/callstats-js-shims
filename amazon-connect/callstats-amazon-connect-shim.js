@@ -1,6 +1,92 @@
 /*! callstats Amazon SHIM version = 1.1.8 */
 
 (function (global) {
+  class VoiceActivityDetection {
+    constructor(stream, callback) {  
+      this.AudioContext = window.AudioContext || window.webkitAudioContext;
+      this.audioContext = new this.AudioContext();
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 512;
+      this.analyser.smoothingTimeConstant = 0.1;
+      this.fftBins = new Float32Array(this.analyser.frequencyBinCount);
+      this.mediaStreamSource = this.audioContext.createMediaStreamSource(stream);
+      this.mediaStreamSource.connect(this.analyser);
+      this.isSpeaking = false;
+      this.maxVolumeHistory = [];
+      for (var i=0; i < 10; i++) {
+        this.maxVolumeHistory.push(0);
+      }
+      this.threshold = -50;
+      this.interval = 50;
+      this.callback = callback;
+      this.start();
+    }
+
+    getMaxVolume () {
+      var maxVolume = -Infinity;
+      this.analyser.getFloatFrequencyData(this.fftBins);
+    
+      for(var i=4, ii=this.fftBins.length; i < ii; i++) {
+        if (this.fftBins[i] > maxVolume && this.fftBins[i] < 0) {
+          maxVolume = this.fftBins[i];
+        }
+      };    
+      return maxVolume;
+    }
+
+    start() {
+      var self = this;
+      if (self.timer) {
+        return;
+      }
+      self.timer = setInterval(function() {
+        self.detect();
+      }, self.interval);
+    }
+
+    detect() {
+      var maxVolume = this.getMaxVolume();
+      var totalMaxVolume = 0;
+      if (maxVolume > this.threshold && !this.speaking) {
+        for (var i = this.maxVolumeHistory.length - 3; i < this.maxVolumeHistory.length; i++) {
+          totalMaxVolume += this.maxVolumeHistory[i];
+        }
+        if (totalMaxVolume >= 2) {
+          this.isSpeaking = true;
+          this.callback('SpeakingStart');
+        }
+      } else if (maxVolume < this.threshold && this.isSpeaking) {
+        for (var i = 0; i < this.maxVolumeHistory.length; i++) {
+          totalMaxVolume += this.maxVolumeHistory[i];
+        }
+        if (totalMaxVolume == 0) {
+          this.isSpeaking = false;
+          this.callback('SpeakingStop');
+        }
+      }
+      this.maxVolumeHistory.shift();
+      this.maxVolumeHistory.push(0 + (maxVolume > this.threshold));
+    }
+
+    suspend() {
+      this.audioContext.suspend();
+    }
+
+    resume() {
+      this.audioContext.resume();
+    }
+
+    stop() {
+      clearInterval(this.timer);
+      if (this.isSpeaking) {
+        this.isSpeaking = false;
+        this.callback('SpeakingStop');
+      }
+      this.analyser.disconnect();
+      this.mediaStreamSource.disconnect();
+    }
+  };
+
   var CallstatsAmazonShim = function(callstats) {
     CallstatsAmazonShim.callstats = callstats;
     var csioPc = null;
@@ -13,6 +99,16 @@
     var callDetails = {
       role: "agent",
     }
+    var localAudioAnalyser, remoteAudioAnalyser;
+
+    var agentSpeakingStarted = false;
+    var contactSpeakingStarted = false;
+    var crossTalkStarted = false;
+    
+    var agentSpeakingState = false; 
+    var contactSpeakingState = false;
+
+    var prevSpeakingState = null;
 
     function isAmazonPC(pcConfig) {
       if (!pcConfig.iceServers) {
@@ -75,6 +171,8 @@
         if (collectJabraStats) {
           CallstatsJabraShim.stopJabraMonitoring();
         }
+        localAudioAnalyser.stop();
+        remoteAudioAnalyser.stop();
       });
 
       contact.onAccepted(function() {
@@ -90,6 +188,25 @@
         CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
         isCallDetailsSent = true;
         callState = null;
+        var remoteStream = csioPc.getRemoteStreams();
+        var localStream = csioPc.getLocalStreams();
+        remoteAudioAnalyser = new VoiceActivityDetection(remoteStream[0], function(arg1) {
+          if (arg1 === 'SpeakingStart') {
+            contactSpeakingState = true;
+          } else if (arg1 === 'SpeakingStop') {
+            contactSpeakingState = false;
+          }
+          handleSpeakingState();
+        });
+
+        localAudioAnalyser = new VoiceActivityDetection(localStream[0], function(arg1) {
+          if (arg1 === 'SpeakingStart') {
+            agentSpeakingState = true;
+          } else if (arg1 === 'SpeakingStop') {
+            agentSpeakingState = false;
+          }
+          handleSpeakingState();
+        });
       });
 
       contact.onRefresh(currentContact => {
@@ -136,6 +253,60 @@
       }
     }
 
+    function sendCustomEvent(eventType) {
+      if (prevSpeakingState === eventType) {
+        return;
+      }
+      console.log(eventType);
+      prevSpeakingState = eventType;
+      var eventList = [];
+      var event = {
+        type: eventType,
+        timestamp: getTimestamp(),
+      }
+
+      eventList.push(event);
+      if (eventList.length === 40) {
+        CallstatsAmazonShim.callstats.sendCustomEvent(null, confId, eventList);
+        eventList = [];
+      }
+    }
+
+    function handleSpeakingState() {
+      if (!agentSpeakingStarted && agentSpeakingState) {
+        agentSpeakingStarted = true;
+      } else if (agentSpeakingState === false && agentSpeakingStarted) {
+        agentSpeakingStarted = false;
+        if (!crossTalkStarted) {
+          sendCustomEvent('agentSpeakingStop');
+        }
+      }
+
+      if (!contactSpeakingStarted && contactSpeakingState) {
+        contactSpeakingStarted = true;
+      } else if (contactSpeakingState === false && contactSpeakingStarted) {
+        contactSpeakingStarted = false;
+        if (!crossTalkStarted) {
+          sendCustomEvent('contactSpeakingStop');
+        }
+      }
+
+      if (contactSpeakingStarted && agentSpeakingStarted) {
+        crossTalkStarted = true;
+      } else if (crossTalkStarted && (contactSpeakingStarted || agentSpeakingStarted)) {
+        crossTalkStarted = false;
+        sendCustomEvent('crossTalkStop');
+      }
+
+      if (crossTalkStarted) {
+        sendCustomEvent('crossTalkStart');
+      } else if (agentSpeakingStarted) {
+        sendCustomEvent('agentSpeakingStart');
+      } else if (contactSpeakingStarted) {
+        sendCustomEvent('contactSpeakingStart');
+      }
+    }
+
     function handleErrors(error) {
       if (!error) {
         return;
@@ -168,7 +339,7 @@
       if (!pc) {
         return;
       }
-      csioPc = pc;
+      csioPc = pc; 
       isCallDetailsSent = false;
       const fabricAttributes = {
         remoteEndpointType:   CallstatsAmazonShim.callstats.endpointType.server,
