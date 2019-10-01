@@ -96,6 +96,7 @@
     var isCallDetailsSent = false;
     var callState = null;
     var collectJabraStats = false;
+    var enableVoiceActivityDetection = true;
     var callDetails = {
       role: "agent",
     }
@@ -109,6 +110,7 @@
     var contactSpeakingState = false;
 
     var prevSpeakingState = null;
+    let eventList = [];
 
     function isAmazonPC(pcConfig) {
       if (!pcConfig.iceServers) {
@@ -171,8 +173,15 @@
         if (collectJabraStats) {
           CallstatsJabraShim.stopJabraMonitoring();
         }
-        localAudioAnalyser.stop();
-        remoteAudioAnalyser.stop();
+        if (enableVoiceActivityDetection) {
+          localAudioAnalyser.stop();
+          remoteAudioAnalyser.stop();
+          if (eventList.length > 0) {
+            CallstatsAmazonShim.callstats.sendCustomEvent(null, 
+              confId, eventList);
+            eventList = [];
+          }
+        }
       });
 
       contact.onAccepted(function() {
@@ -188,6 +197,9 @@
         CallstatsAmazonShim.callstats.sendCallDetails(csioPc, confId, callDetails);
         isCallDetailsSent = true;
         callState = null;
+        if (!enableVoiceActivityDetection) {
+          return;
+        }
         var remoteStream = csioPc.getRemoteStreams();
         var localStream = csioPc.getLocalStreams();
         remoteAudioAnalyser = new VoiceActivityDetection(remoteStream[0], function(arg1) {
@@ -259,7 +271,6 @@
       }
       console.log(eventType);
       prevSpeakingState = eventType;
-      var eventList = [];
       var event = {
         type: eventType,
         timestamp: getTimestamp(),
@@ -378,7 +389,12 @@
 
       if (params && params.enableJabraCollection) {
         collectJabraStats = true;
+        enableVoiceActivityDetection = false;
         CallstatsJabraShim.initialize(CallstatsAmazonShim.callstats);
+      }
+
+      if (params && params.enableVoiceActivityDetection === false) {
+        enableVoiceActivityDetection = false;
       }
 
       connect.contact(subscribeToAmazonContactEvents);
