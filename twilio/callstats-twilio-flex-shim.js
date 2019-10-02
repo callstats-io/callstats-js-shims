@@ -33,6 +33,19 @@ function preCallTestResultsCallback(status, results) {
   }
 }
 
+function getTimestamp() {
+  if (!window || !window.performance || !window.performance.now) {
+    return Date.now();
+  }
+  if (!window.performance.timing) {
+    return Date.now();
+  }
+  if (!window.performance.timing.navigationStart) {
+    return Date.now();
+  }
+  return window.performance.now() + window.performance.timing.navigationStart;
+}
+
 function initPCShim () {
   var origPeerConnection = window.RTCPeerConnection;
   window.RTCPeerConnection = function(pcConfig, pcConstraints) {
@@ -53,7 +66,9 @@ function initPCShim () {
                 contactID: $callData.task.conference.conferenceSid,
                 callType: 'inbound',
                 siteID: 'callstats Twilio Flex',
-                role: 'agent'
+                role: 'agent',
+                connectedTimestamp: getTimestamp(),
+                acceptedTimestamp: getTimestamp(),
               }
               callStats.sendCallDetails(pc, $callData.task.conference.conferenceSid, callDetails);
               CallstatsJabraShim.startJabraMonitoring(callDetails.contactID);
