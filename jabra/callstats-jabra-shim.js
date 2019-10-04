@@ -92,6 +92,7 @@
       let event = {
         type: eventType,
         timestamp: getTimestamp(),
+        source: 'Jabra',
       }
 
       eventList.push(event);

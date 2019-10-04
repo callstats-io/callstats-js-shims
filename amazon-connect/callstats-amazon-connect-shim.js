@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.1.8 */
+/*! callstats Amazon SHIM version = 1.2.0 */
 
 (function (global) {
   class VoiceActivityDetection {
@@ -269,11 +269,11 @@
       if (prevSpeakingState === eventType) {
         return;
       }
-      console.log(eventType);
       prevSpeakingState = eventType;
       var event = {
         type: eventType,
         timestamp: getTimestamp(),
+        source: 'CSIOAlgorithm',
       }
 
       eventList.push(event);
