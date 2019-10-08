@@ -26,7 +26,7 @@
       var maxVolume = -Infinity;
       this.analyser.getFloatFrequencyData(this.fftBins);
     
-      for(var i=4, ii=this.fftBins.length; i < ii; i++) {
+      for(var i=4; i < this.fftBins.length; i++) {
         if (this.fftBins[i] > maxVolume && this.fftBins[i] < 0) {
           maxVolume = this.fftBins[i];
         }
@@ -66,14 +66,6 @@
       }
       this.maxVolumeHistory.shift();
       this.maxVolumeHistory.push(0 + (maxVolume > this.threshold));
-    }
-
-    suspend() {
-      this.audioContext.suspend();
-    }
-
-    resume() {
-      this.audioContext.resume();
     }
 
     stop() {
@@ -200,25 +192,31 @@
         if (!enableVoiceActivityDetection) {
           return;
         }
-        var remoteStream = csioPc.getRemoteStreams();
-        var localStream = csioPc.getLocalStreams();
-        remoteAudioAnalyser = new VoiceActivityDetection(remoteStream[0], function(arg1) {
-          if (arg1 === 'SpeakingStart') {
-            contactSpeakingState = true;
-          } else if (arg1 === 'SpeakingStop') {
-            contactSpeakingState = false;
-          }
-          handleSpeakingState();
-        });
 
-        localAudioAnalyser = new VoiceActivityDetection(localStream[0], function(arg1) {
-          if (arg1 === 'SpeakingStart') {
-            agentSpeakingState = true;
-          } else if (arg1 === 'SpeakingStop') {
-            agentSpeakingState = false;
-          }
-          handleSpeakingState();
-        });
+        var localStream = csioPc.getLocalStreams();
+        var remoteStream = csioPc.getRemoteStreams();
+
+        if (localStream && localStream[0]) {
+          localAudioAnalyser = new VoiceActivityDetection(localStream[0], function(arg1) {
+            if (arg1 === 'SpeakingStart') {
+              agentSpeakingState = true;
+            } else if (arg1 === 'SpeakingStop') {
+              agentSpeakingState = false;
+            }
+            handleSpeakingState();
+          });
+        }
+        
+        if (remoteStream && remoteStream[0]) {
+          remoteAudioAnalyser = new VoiceActivityDetection(remoteStream[0], function(arg1) {
+            if (arg1 === 'SpeakingStart') {
+              contactSpeakingState = true;
+            } else if (arg1 === 'SpeakingStop') {
+              contactSpeakingState = false;
+            }
+            handleSpeakingState();
+          });
+        }
       });
 
       contact.onRefresh(currentContact => {
