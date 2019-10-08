@@ -387,7 +387,6 @@
 
       if (params && params.enableJabraCollection) {
         collectJabraStats = true;
-        enableVoiceActivityDetection = false;
         CallstatsJabraShim.initialize(CallstatsAmazonShim.callstats);
       }
 
