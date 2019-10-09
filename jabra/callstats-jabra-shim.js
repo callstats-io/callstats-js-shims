@@ -1,4 +1,4 @@
-/*! callstats Jabra SHIM version = 1.1.0 */
+/*! callstats Jabra SHIM version = 1.1.1 */
 
 (function (global) {
   var CallstatsJabraShim = function() {
@@ -92,6 +92,7 @@
       let event = {
         type: eventType,
         timestamp: getTimestamp(),
+        source: 'Jabra',
       }
 
       eventList.push(event);
