@@ -12,7 +12,7 @@
       this.mediaStreamSource = this.audioContext.createMediaStreamSource(stream);
       this.mediaStreamSource.connect(this.analyser);
 
-      this.audioProcessor = this.audioContext.createScriptProcessor(256);
+      this.audioProcessor = this.audioContext.createScriptProcessor(512);
       this.audioProcessor.connect(this.audioContext.destination);
       this.audioProcessor.onaudioprocess = this.handleAudioProcess.bind(this);
       
