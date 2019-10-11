@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.2.0 */
+/*! callstats Amazon SHIM version = 1.2.1 */
 
 (function (global) {
   class VoiceActivityDetection {
@@ -11,6 +11,11 @@
       this.fftBins = new Float32Array(this.analyser.frequencyBinCount);
       this.mediaStreamSource = this.audioContext.createMediaStreamSource(stream);
       this.mediaStreamSource.connect(this.analyser);
+
+      this.audioProcessor = this.audioContext.createScriptProcessor(256);
+      this.audioProcessor.connect(this.audioContext.destination);
+      this.audioProcessor.onaudioprocess = this.handleAudioProcess.bind(this);
+      
       this.isSpeaking = false;
       this.maxVolumeHistory = [];
       for (var i=0; i < 10; i++) {
@@ -19,7 +24,33 @@
       this.threshold = -50;
       this.interval = 50;
       this.callback = callback;
+      this.isClipping = false;
       this.start();
+    }
+
+    handleAudioProcess(audioEvent) {
+      const leftAudioBuffer = audioEvent.inputBuffer.getChannelData(0);
+      const rightAudioBuffer = audioEvent.inputBuffer.getChannelData(1);
+      const leftClip = this.checkClipping(leftAudioBuffer);
+      const rightClip = this.checkClipping(rightAudioBuffer);
+      if ((leftClip || rightClip) && !this.isClipping) {
+        this.isClipping = true;
+        this.callback('ClippingStart');
+      } else if (!leftClip && !rightClip && this.isClipping) {
+        this.isClipping = false;
+        this.callback('ClippingStop');
+      }
+    }
+
+    checkClipping(audioBuffer) {
+      // Iterate through buffer to check if any of the |values| exceeds 1.
+      for (var i = 0; i < audioBuffer.length; i++) {
+        var absValue = Math.abs(audioBuffer[i]);
+        if (absValue >= 1.0) {
+          return true;
+        }
+      }
+      return false;
     }
 
     getMaxVolume () {
@@ -76,6 +107,7 @@
       }
       this.analyser.disconnect();
       this.mediaStreamSource.disconnect();
+      this.audioProcessor.disconnect();
     }
   };
 
@@ -221,7 +253,6 @@
 
       contact.onRefresh(currentContact => {
         // check the current hold state and pause or resume fabric based on current hold state
-        const connection = currentContact.getActiveInitialConnection();
         const currentStatus = connection ? connection.getStatus() : null;
         if (!currentStatus || !currentStatus.type) {
           return;
