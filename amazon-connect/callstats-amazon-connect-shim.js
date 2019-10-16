@@ -1,4 +1,4 @@
-/*! callstats Amazon Connect Shim version = 1.2.2 */
+/*! callstats Amazon Connect Shim version = 1.2.1 */
 
 (function (global) {
   class VoiceActivityDetection {
@@ -147,6 +147,8 @@
 
     function initPCShim () {
       var origPeerConnection = window.RTCPeerConnection;
+      
+      overWriteGetUserMedia();
       window.RTCPeerConnection = function(pcConfig, pcConstraints) {
         if (pcConfig && pcConfig.iceTransportPolicy) {
           pcConfig.iceTransports = pcConfig.iceTransportPolicy;
