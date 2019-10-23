@@ -79,7 +79,8 @@
     }
   };
 
-  var CallstatsAmazonShim = function() {
+  var CallstatsAmazonShim = function(callstats) {
+    CallstatsAmazonShim.callstats = callstats;
     var csioPc = null;
     var confId;
     var SoftphoneErrorTypes;
