@@ -520,12 +520,12 @@
     }
   };
   if (("function" === typeof define) && (define.amd)) { /* AMD support */
-    define('callstats-amazon-client', ['callstats'], function(callstats) {
-      global.CallstatsAmazonShim = new CallstatsAmazonShim(callstats);
-      return  global.CallstatsAmazonShim;
-    });
-    } else { /* Browsers and Web Workers*/
-      var callstats = new window.callstats();
-      global.CallstatsAmazonShim = new CallstatsAmazonShim(callstats);
-    }
+  define('callstats-amazon-client', ['callstats'], function(callstats) {
+    global.CallstatsAmazonShim = new CallstatsAmazonShim(callstats);
+    return  global.CallstatsAmazonShim;
+  });
+  } else { /* Browsers and Web Workers*/
+    var callstats = new window.callstats();
+    global.CallstatsAmazonShim = new CallstatsAmazonShim(callstats);
+  }
 }(this));
