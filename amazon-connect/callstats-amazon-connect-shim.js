@@ -86,6 +86,7 @@
     var SoftphoneErrorTypes;
     var RTCErrorTypes;
     var isCallDetailsSent = false;
+    var isConferenceSummarySent = false;
     var callState = null;
     var collectJabraStats = false;
     var enableVoiceActivityDetection = true;
@@ -199,8 +200,12 @@
           CallstatsJabraShim.stopJabraMonitoring();
         }
         if (enableVoiceActivityDetection) {
-          localAudioAnalyser.stop();
-          remoteAudioAnalyser.stop();
+          if (localAudioAnalyser) {
+            localAudioAnalyser.stop();
+          }
+          if (remoteAudioAnalyser) {
+            remoteAudioAnalyser.stop();
+          }
           if (eventList.length > 0) {
             CallstatsAmazonShim.callstats.sendCustomEvent(null, 
               confId, eventList);
@@ -216,9 +221,7 @@
             contactID: confId,
             isCallForwarded: isCallForwarded,
           }
-    
-          eventList.push(event);
-          CallstatsAmazonShim.callstats.sendCustomEvent(null, confId, eventList);
+          CallstatsAmazonShim.callstats.sendCustomEvent(null, confId, [event]);
           isConferenceSummarySent = true;
         }
       });
