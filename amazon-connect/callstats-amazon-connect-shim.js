@@ -26,6 +26,8 @@
       this.callback = callback;
       this.isClipping = false;
       this.start();
+      this.totalSamples = 0;
+      this.clippedSamples = 0;
     }
 
     handleAudioProcess(audioEvent) {
@@ -38,19 +40,28 @@
         this.callback('ClippingStart');
       } else if (!leftClip && !rightClip && this.isClipping) {
         this.isClipping = false;
-        this.callback('ClippingStop');
+        this.callback('ClippingStop', {totalSamples: this.totalSamples, clippedSamples: this.clippedSamples});
+        this.totalSamples = 0;
+        this.clippedSamples = 0;
       }
     }
 
     checkClipping(audioBuffer) {
-      // Iterate through buffer to check if any of the |values| exceeds 1.
+      var clippingSamples = 0;
+
       for (var i = 0; i < audioBuffer.length; i++) {
         var absValue = Math.abs(audioBuffer[i]);
         if (absValue >= 1.0) {
-          return true;
+          clippingSamples++;
         }
       }
-      return false;
+      this.totalSamples += audioBuffer.length;
+      if (clippingSamples > 0) {
+        this.clippedSamples += clippingSamples;
+        return true;
+      } else {
+        return false;
+      }
     }
 
     getMaxVolume () {
@@ -229,11 +240,15 @@
         var remoteStream = csioPc.getRemoteStreams();
 
         if (localStream && localStream[0]) {
-          localAudioAnalyser = new VoiceActivityDetection(localStream[0], function(arg1) {
+          localAudioAnalyser = new VoiceActivityDetection(localStream[0], function(arg1, arg2) {
             if (arg1 === 'SpeakingStart') {
               agentSpeakingState = true;
             } else if (arg1 === 'SpeakingStop') {
               agentSpeakingState = false;
+            } else if (arg1 === 'ClippingStart') {
+              sendCustomEvent('clippingStart');
+            } else if (arg1 === 'ClippingStop') {
+              sendCustomEvent('clippingStop', arg1);
             }
             handleSpeakingState();
           });
@@ -294,7 +309,7 @@
       }
     }
 
-    function sendCustomEvent(eventType) {
+    function sendCustomEvent(eventType, eventData) {
       if (prevSpeakingState === eventType) {
         return;
       }
@@ -303,6 +318,11 @@
         type: eventType,
         timestamp: getTimestamp(),
         source: 'CSIOAlgorithm',
+      }
+
+      if (eventType === 'clippingStop' && eventData) {
+        event.totalSamples = eventData.totalSamples;
+        event.clippedSamples = eventData.clippedSamples;
       }
 
       eventList.push(event);
