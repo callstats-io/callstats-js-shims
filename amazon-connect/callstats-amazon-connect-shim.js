@@ -1,5 +1,4 @@
 /*! callstats Amazon Connect Shim version = 1.3.0 */
-
 class VoiceActivityDetection {
   constructor(stream, callback) {  
     this.AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -10,6 +9,11 @@ class VoiceActivityDetection {
     this.fftBins = new Float32Array(this.analyser.frequencyBinCount);
     this.mediaStreamSource = this.audioContext.createMediaStreamSource(stream);
     this.mediaStreamSource.connect(this.analyser);
+
+    this.audioProcessor = this.audioContext.createScriptProcessor(512);
+    this.audioProcessor.connect(this.audioContext.destination);
+    this.audioProcessor.onaudioprocess = this.handleAudioProcess.bind(this);
+    
     this.isSpeaking = false;
     this.maxVolumeHistory = [];
     for (var i=0; i < 10; i++) {
@@ -18,7 +22,44 @@ class VoiceActivityDetection {
     this.threshold = -50;
     this.interval = 50;
     this.callback = callback;
+    this.isClipping = false;
     this.start();
+    this.totalSamples = 0;
+    this.clippedSamples = 0;
+  }
+
+  handleAudioProcess(audioEvent) {
+    const leftAudioBuffer = audioEvent.inputBuffer.getChannelData(0);
+    const rightAudioBuffer = audioEvent.inputBuffer.getChannelData(1);
+    const leftClip = this.checkClipping(leftAudioBuffer);
+    const rightClip = this.checkClipping(rightAudioBuffer);
+    if ((leftClip || rightClip) && !this.isClipping) {
+      this.isClipping = true;
+      this.callback('ClippingStart');
+    } else if (!leftClip && !rightClip && this.isClipping) {
+      this.isClipping = false;
+      this.callback('ClippingStop', {totalSamples: this.totalSamples, clippedSamples: this.clippedSamples});
+      this.totalSamples = 0;
+      this.clippedSamples = 0;
+    }
+  }
+
+  checkClipping(audioBuffer) {
+    var clippingSamples = 0;
+
+    for (var i = 0; i < audioBuffer.length; i++) {
+      var absValue = Math.abs(audioBuffer[i]);
+      if (absValue >= 1.0) {
+        clippingSamples++;
+      }
+    }
+    this.totalSamples += audioBuffer.length;
+    if (clippingSamples > 0) {
+      this.clippedSamples += clippingSamples;
+      return true;
+    } else {
+      return false;
+    }
   }
 
   getMaxVolume () {
@@ -75,6 +116,7 @@ class VoiceActivityDetection {
     }
     this.analyser.disconnect();
     this.mediaStreamSource.disconnect();
+    this.audioProcessor.disconnect();
   }
 };
 
@@ -84,6 +126,7 @@ var CallstatsAmazonShim = function() {
   var SoftphoneErrorTypes;
   var RTCErrorTypes;
   var isCallDetailsSent = false;
+  var isConferenceSummarySent = false;
   var callState = null;
   var collectJabraStats = false;
   var enableVoiceActivityDetection = true;
@@ -101,6 +144,10 @@ var CallstatsAmazonShim = function() {
 
   var prevSpeakingState = null;
   let eventList = [];
+  let pcCreationTime = 0;
+  let ringingTime = 0;
+  let pstnTime = 0;
+  let isCallForwarded = false;
   var getUserMediaError = {
     message: "SoftphoneError: MICROPHONE NOT SHARED",
   };
@@ -172,7 +219,6 @@ var CallstatsAmazonShim = function() {
     }
     callDetails.originalContactID = contact.getOriginalContactId();
     callDetails.contactID = confId;
-    
     if (!confId) {
       confId = CallstatsAmazonShim.localUserID + ":" + CallstatsAmazonShim.remoteId;
     }
@@ -196,22 +242,42 @@ var CallstatsAmazonShim = function() {
         CallstatsJabraShim.stopJabraMonitoring();
       }
       if (enableVoiceActivityDetection) {
-        localAudioAnalyser.stop();
-        remoteAudioAnalyser.stop();
+        if (localAudioAnalyser) {
+          localAudioAnalyser.stop();
+        }
+        if (remoteAudioAnalyser) {
+          remoteAudioAnalyser.stop();
+        }
         if (eventList.length > 0) {
           CallstatsAmazonShim.callstats.sendCustomEvent(null, 
             confId, eventList);
           eventList = [];
         }
       }
+      if (!isConferenceSummarySent) {
+        var event = {
+          type: 'conferenceSummary',
+          timestamp: getTimestamp(),
+          pstnTime: pstnTime,
+          ringingTime: ringingTime,
+          contactID: confId,
+          isCallForwarded: isCallForwarded,
+        }
+        CallstatsAmazonShim.callstats.sendCustomEvent(null, confId, [event]);
+        isConferenceSummarySent = true;
+      }
     });
 
     contact.onAccepted(function() {
       callDetails.acceptedTimestamp = getTimestamp();
+      ringingTime = callDetails.acceptedTimestamp - pcCreationTime;
     });
 
     contact.onConnected(function() {
       callDetails.connectedTimestamp = getTimestamp();
+      if (callDetails.acceptedTimestamp) {
+        pstnTime = callDetails.connectedTimestamp - callDetails.acceptedTimestamp;
+      }
       const attributes1 = contact.getAttributes();
       if (attributes1 && attributes1.AgentLocation) {
         callDetails.siteID = attributes1.AgentLocation.value;
@@ -227,11 +293,15 @@ var CallstatsAmazonShim = function() {
       var remoteStream = csioPc.getRemoteStreams();
 
       if (localStream && localStream[0]) {
-        localAudioAnalyser = new VoiceActivityDetection(localStream[0], function(arg1) {
+        localAudioAnalyser = new VoiceActivityDetection(localStream[0], function(arg1, arg2) {
           if (arg1 === 'SpeakingStart') {
             agentSpeakingState = true;
           } else if (arg1 === 'SpeakingStop') {
             agentSpeakingState = false;
+          } else if (arg1 === 'ClippingStart') {
+            sendCustomEvent('clippingStart');
+          } else if (arg1 === 'ClippingStop') {
+            sendCustomEvent('clippingStop', arg1);
           }
           handleSpeakingState();
         });
@@ -252,6 +322,10 @@ var CallstatsAmazonShim = function() {
     contact.onRefresh(currentContact => {
       // check the current hold state and pause or resume fabric based on current hold state
       const connection = currentContact.getActiveInitialConnection();
+      const thirdPartyConnection = currentContact.getSingleActiveThirdPartyConnection();
+      if (connection && thirdPartyConnection) {
+        isCallForwarded = true;
+      }
       const currentStatus = connection ? connection.getStatus() : null;
       if (!currentStatus || !currentStatus.type) {
         return;
@@ -293,7 +367,7 @@ var CallstatsAmazonShim = function() {
     }
   }
 
-  function sendCustomEvent(eventType) {
+  function sendCustomEvent(eventType, eventData) {
     if (prevSpeakingState === eventType) {
       return;
     }
@@ -302,6 +376,11 @@ var CallstatsAmazonShim = function() {
       type: eventType,
       timestamp: getTimestamp(),
       source: 'CSIOAlgorithm',
+    }
+
+    if (eventType === 'clippingStop' && eventData) {
+      event.totalSamples = eventData.totalSamples;
+      event.clippedSamples = eventData.clippedSamples;
     }
 
     eventList.push(event);
@@ -380,10 +459,17 @@ var CallstatsAmazonShim = function() {
     }
     csioPc = pc; 
     isCallDetailsSent = false;
+    isConferenceSummarySent = false;
+    pcCreationTime = 0;
+    ringingTime = 0;
+    pstnTime = 0;
+    isCallForwarded = false;
+
     const fabricAttributes = {
       remoteEndpointType:   CallstatsAmazonShim.callstats.endpointType.server,
     };
     try {
+      pcCreationTime = getTimestamp();
       CallstatsAmazonShim.callstats.addNewFabric(csioPc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex,
         confId, fabricAttributes);
     } catch(error) {
@@ -487,6 +573,7 @@ var CallstatsAmazonShim = function() {
     return csioPc;
   }
 };
+
 
 var callstats = new window.callstats();
 window.CallstatsAmazonShim = new CallstatsAmazonShim();
