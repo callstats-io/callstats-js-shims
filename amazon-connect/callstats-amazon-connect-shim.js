@@ -11,6 +11,11 @@
       this.fftBins = new Float32Array(this.analyser.frequencyBinCount);
       this.mediaStreamSource = this.audioContext.createMediaStreamSource(stream);
       this.mediaStreamSource.connect(this.analyser);
+
+      this.audioProcessor = this.audioContext.createScriptProcessor(512);
+      this.audioProcessor.connect(this.audioContext.destination);
+      this.audioProcessor.onaudioprocess = this.handleAudioProcess.bind(this);
+      
       this.isSpeaking = false;
       this.maxVolumeHistory = [];
       for (var i=0; i < 10; i++) {
@@ -19,7 +24,44 @@
       this.threshold = -50;
       this.interval = 50;
       this.callback = callback;
+      this.isClipping = false;
       this.start();
+      this.totalSamples = 0;
+      this.clippedSamples = 0;
+    }
+
+    handleAudioProcess(audioEvent) {
+      const leftAudioBuffer = audioEvent.inputBuffer.getChannelData(0);
+      const rightAudioBuffer = audioEvent.inputBuffer.getChannelData(1);
+      const leftClip = this.checkClipping(leftAudioBuffer);
+      const rightClip = this.checkClipping(rightAudioBuffer);
+      if ((leftClip || rightClip) && !this.isClipping) {
+        this.isClipping = true;
+        this.callback('ClippingStart');
+      } else if (!leftClip && !rightClip && this.isClipping) {
+        this.isClipping = false;
+        this.callback('ClippingStop', {totalSamples: this.totalSamples, clippedSamples: this.clippedSamples});
+        this.totalSamples = 0;
+        this.clippedSamples = 0;
+      }
+    }
+
+    checkClipping(audioBuffer) {
+      var clippingSamples = 0;
+
+      for (var i = 0; i < audioBuffer.length; i++) {
+        var absValue = Math.abs(audioBuffer[i]);
+        if (absValue >= 1.0) {
+          clippingSamples++;
+        }
+      }
+      this.totalSamples += audioBuffer.length;
+      if (clippingSamples > 0) {
+        this.clippedSamples += clippingSamples;
+        return true;
+      } else {
+        return false;
+      }
     }
 
     getMaxVolume () {
@@ -76,6 +118,7 @@
       }
       this.analyser.disconnect();
       this.mediaStreamSource.disconnect();
+      this.audioProcessor.disconnect();
     }
   };
 
@@ -226,11 +269,15 @@
         var remoteStream = csioPc.getRemoteStreams();
 
         if (localStream && localStream[0]) {
-          localAudioAnalyser = new VoiceActivityDetection(localStream[0], function(arg1) {
+          localAudioAnalyser = new VoiceActivityDetection(localStream[0], function(arg1, arg2) {
             if (arg1 === 'SpeakingStart') {
               agentSpeakingState = true;
             } else if (arg1 === 'SpeakingStop') {
               agentSpeakingState = false;
+            } else if (arg1 === 'ClippingStart') {
+              sendCustomEvent('clippingStart');
+            } else if (arg1 === 'ClippingStop') {
+              sendCustomEvent('clippingStop', arg1);
             }
             handleSpeakingState();
           });
@@ -292,7 +339,7 @@
       }
     }
 
-    function sendCustomEvent(eventType) {
+    function sendCustomEvent(eventType, eventData) {
       if (prevSpeakingState === eventType) {
         return;
       }
@@ -301,6 +348,11 @@
         type: eventType,
         timestamp: getTimestamp(),
         source: 'CSIOAlgorithm',
+      }
+
+      if (eventType === 'clippingStop' && eventData) {
+        event.totalSamples = eventData.totalSamples;
+        event.clippedSamples = eventData.clippedSamples;
       }
 
       eventList.push(event);
