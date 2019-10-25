@@ -129,6 +129,7 @@
     var SoftphoneErrorTypes;
     var RTCErrorTypes;
     var isCallDetailsSent = false;
+    var isConferenceSummarySent = false;
     var callState = null;
     var collectJabraStats = false;
     var enableVoiceActivityDetection = true;
@@ -146,6 +147,10 @@
 
     var prevSpeakingState = null;
     let eventList = [];
+    let pcCreationTime = 0;
+    let ringingTime = 0;
+    let pstnTime = 0;
+    let isCallForwarded = false;
     var getUserMediaError = {
       message: "SoftphoneError: MICROPHONE NOT SHARED",
     };
@@ -238,22 +243,42 @@
           CallstatsJabraShim.stopJabraMonitoring();
         }
         if (enableVoiceActivityDetection) {
-          localAudioAnalyser.stop();
-          remoteAudioAnalyser.stop();
+          if (localAudioAnalyser) {
+            localAudioAnalyser.stop();
+          }
+          if (remoteAudioAnalyser) {
+            remoteAudioAnalyser.stop();
+          }
           if (eventList.length > 0) {
             CallstatsAmazonShim.callstats.sendCustomEvent(null, 
               confId, eventList);
             eventList = [];
           }
         }
+        if (!isConferenceSummarySent) {
+          var event = {
+            type: 'conferenceSummary',
+            timestamp: getTimestamp(),
+            pstnTime: pstnTime,
+            ringingTime: ringingTime,
+            contactID: confId,
+            isCallForwarded: isCallForwarded,
+          }
+          CallstatsAmazonShim.callstats.sendCustomEvent(null, confId, [event]);
+          isConferenceSummarySent = true;
+        }
       });
 
       contact.onAccepted(function() {
         callDetails.acceptedTimestamp = getTimestamp();
+        ringingTime = callDetails.acceptedTimestamp - pcCreationTime;
       });
 
       contact.onConnected(function() {
         callDetails.connectedTimestamp = getTimestamp();
+        if (callDetails.acceptedTimestamp) {
+          pstnTime = callDetails.connectedTimestamp - callDetails.acceptedTimestamp;
+        }
         const attributes1 = contact.getAttributes();
         if (attributes1 && attributes1.AgentLocation) {
           callDetails.siteID = attributes1.AgentLocation.value;
@@ -298,6 +323,10 @@
       contact.onRefresh(currentContact => {
         // check the current hold state and pause or resume fabric based on current hold state
         const connection = currentContact.getActiveInitialConnection();
+        const thirdPartyConnection = currentContact.getSingleActiveThirdPartyConnection();
+        if (connection && thirdPartyConnection) {
+          isCallForwarded = true;
+        }
         const currentStatus = connection ? connection.getStatus() : null;
         if (!currentStatus || !currentStatus.type) {
           return;
@@ -431,10 +460,17 @@
       }
       csioPc = pc; 
       isCallDetailsSent = false;
+      isConferenceSummarySent = false;
+      pcCreationTime = 0;
+      ringingTime = 0;
+      pstnTime = 0;
+      isCallForwarded = false;
+
       const fabricAttributes = {
         remoteEndpointType:   CallstatsAmazonShim.callstats.endpointType.server,
       };
       try {
+        pcCreationTime = getTimestamp();
         CallstatsAmazonShim.callstats.addNewFabric(csioPc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex,
           confId, fabricAttributes);
       } catch(error) {
