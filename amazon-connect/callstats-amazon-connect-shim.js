@@ -1,4 +1,4 @@
-/*! callstats Amazon SHIM version = 1.2.1 */
+/*! callstats Amazon Connect Shim version = 1.2.1 */
 
 (function (global) {
   class VoiceActivityDetection {
@@ -146,6 +146,9 @@
 
     var prevSpeakingState = null;
     let eventList = [];
+    var getUserMediaError = {
+      message: "SoftphoneError: MICROPHONE NOT SHARED",
+    };
 
     function isAmazonPC(pcConfig) {
       if (!pcConfig.iceServers) {
@@ -161,8 +164,34 @@
       return true;
     }
 
+    // Overwrite get user media
+    function overWriteGetUserMedia() {
+      if (!(navigator && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function')) {
+        return;
+      }
+
+      let original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = function (constraints) {
+        return new Promise(function(resolve, reject) {
+          original(constraints)
+          .then((stream) => {
+            resolve(stream);
+          })
+          .catch((error) => {
+            if (error) {
+              getUserMediaError.message = error.message;
+              getUserMediaError.name = error.name;
+            }
+            reject(error);
+          })
+        });     
+      };
+    }
+
     function initPCShim () {
       var origPeerConnection = window.RTCPeerConnection;
+      
+      overWriteGetUserMedia();
       window.RTCPeerConnection = function(pcConfig, pcConstraints) {
         if (pcConfig && pcConfig.iceTransportPolicy) {
           pcConfig.iceTransports = pcConfig.iceTransportPolicy;
@@ -377,19 +406,19 @@
         conferenceId= CallstatsAmazonShim.localUserID + ":" + (CallstatsAmazonShim.remoteId || CallstatsAmazonShim.localUserID);
       }
       if (error.errorType === SoftphoneErrorTypes.MICROPHONE_NOT_SHARED) {
-        CallstatsAmazonShim.callstats.reportError(null, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.getUserMedia, error);
+        CallstatsAmazonShim.callstats.reportError(null, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.getUserMedia, getUserMediaError);
       } else if (error.errorType === SoftphoneErrorTypes.SIGNALLING_CONNECTION_FAILURE) {
-        CallstatsAmazonShim.callstats.reportError(null, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.signalingError, error);
+        CallstatsAmazonShim.callstats.reportError(null, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.signalingError, "SoftphoneError: SIGNALLING CONNECTION FAILURE");
       } else if (error.errorType === SoftphoneErrorTypes.SIGNALLING_HANDSHAKE_FAILURE) {
-        CallstatsAmazonShim.callstats.reportError(csioPc, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.setLocalDescription, error);
+        CallstatsAmazonShim.callstats.reportError(csioPc, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.setLocalDescription, "SoftphoneError: SIGNALLING HANDSHAKE FAILURE");
         CallstatsAmazonShim.callstats.sendCallDetails(csioPc, conferenceId, callDetails);
       } else if (error.errorType === SoftphoneErrorTypes.ICE_COLLECTION_TIMEOUT) {
-        CallstatsAmazonShim.callstats.reportError(csioPc, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.iceConnectionFailure, error);
+        CallstatsAmazonShim.callstats.reportError(csioPc, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.iceConnectionFailure, "SoftphoneError: ICE COLLECTION TIMEOUT");
         CallstatsAmazonShim.callstats.sendCallDetails(csioPc, conferenceId, callDetails);
       } else if (error.errorType === SoftphoneErrorTypes.WEBRTC_ERROR) {
         switch(error.endPointUrl) {
           case RTCErrorTypes.SET_REMOTE_DESCRIPTION_FAILURE:
-            CallstatsAmazonShim.callstats.reportError(csioPc, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.setRemoteDescription, error);
+            CallstatsAmazonShim.callstats.reportError(csioPc, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.setRemoteDescription, "SoftphoneError: SET REMOTE DESCRIPTION FAILURE");
             CallstatsAmazonShim.callstats.sendCallDetails(csioPc, conferenceId, callDetails);
             break;
         }
