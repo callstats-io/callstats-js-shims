@@ -268,6 +268,7 @@
 
       contact.onRefresh(currentContact => {
         // check the current hold state and pause or resume fabric based on current hold state
+        const connection = currentContact.getActiveInitialConnection();
         const currentStatus = connection ? connection.getStatus() : null;
         if (!currentStatus || !currentStatus.type) {
           return;
