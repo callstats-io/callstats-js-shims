@@ -1,4 +1,17 @@
-/*! callstats Amazon Connect Shim version = 1.3.0 */
+/*! callstats Amazon Connect Shim version = 1.3.1 */
+
+function getTimestamp() {
+  if (!window || !window.performance || !window.performance.now) {
+    return Date.now();
+  }
+  if (!window.performance.timing) {
+    return Date.now();
+  }
+  if (!window.performance.timing.navigationStart) {
+    return Date.now();
+  }
+  return window.performance.now() + window.performance.timing.navigationStart;
+}
 class VoiceActivityDetection {
   constructor(stream, callback) {  
     this.AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -23,9 +36,10 @@ class VoiceActivityDetection {
     this.interval = 50;
     this.callback = callback;
     this.isClipping = false;
-    this.start();
     this.totalSamples = 0;
     this.clippedSamples = 0;
+    this.audioLevelStats = [];
+    this.start();
   }
 
   handleAudioProcess(audioEvent) {
@@ -84,6 +98,27 @@ class VoiceActivityDetection {
     }, self.interval);
   }
 
+  getRMSTimeDomainData() {
+    var dataArray = new Float32Array(this.analyser.fftSize);
+    this.analyser.getFloatTimeDomainData(dataArray);
+    let sum = 0;
+    for(var i=0; i < dataArray.length; i++) {
+      sum = sum + (dataArray[i] * dataArray[i]);
+    }; 
+  
+    sum = sum / dataArray.length;
+    var stats = {
+      name: 'webAudioRMSValue',
+      value: Math.sqrt(sum),
+      timestamp: getTimestamp(),
+    }
+    this.audioLevelStats.push(stats);
+    if (this.audioLevelStats.length === 200) {
+      this.callback('AudioLevelMetrics', this.audioLevelStats);
+      this.audioLevelStats = [];
+    }
+  }
+
   detect() {
     var maxVolume = this.getMaxVolume();
     var totalMaxVolume = 0;
@@ -106,9 +141,14 @@ class VoiceActivityDetection {
     }
     this.maxVolumeHistory.shift();
     this.maxVolumeHistory.push(0 + (maxVolume > this.threshold));
+    this.getRMSTimeDomainData();
   }
 
   stop() {
+    if (this.audioLevelStats.length > 0) {
+      this.callback('AudioLevelMetrics', this.audioLevelStats);
+      this.audioLevelStats = [];
+    }
     clearInterval(this.timer);
     if (this.isSpeaking) {
       this.isSpeaking = false;
@@ -302,6 +342,8 @@ var CallstatsAmazonShim = function() {
             sendCustomEvent('clippingStart');
           } else if (arg1 === 'ClippingStop') {
             sendCustomEvent('clippingStop', arg1);
+          } else if (arg1 === 'AudioLevelMetrics') {
+            sendCustomStats(arg2);
           }
           handleSpeakingState();
         });
@@ -390,6 +432,11 @@ var CallstatsAmazonShim = function() {
     }
   }
 
+  function sendCustomStats(stats) {
+    CallstatsAmazonShim.callstats.sendCustomStats(null, 
+      confId, stats);
+  }
+
   function handleSpeakingState() {
     if (!agentSpeakingStarted && agentSpeakingState) {
       agentSpeakingStarted = true;
@@ -475,19 +522,6 @@ var CallstatsAmazonShim = function() {
     } catch(error) {
       console.log('addNewFabric error ', error);
     }
-  }
-
-  function getTimestamp() {
-    if (!window || !window.performance || !window.performance.now) {
-      return Date.now();
-    }
-    if (!window.performance.timing) {
-      return Date.now();
-    }
-    if (!window.performance.timing.navigationStart) {
-      return Date.now();
-    }
-    return window.performance.now() + window.performance.timing.navigationStart;
   }
 
   CallstatsAmazonShim.prototype.initialize = function initialize(connect, appID, appSecret, localUserID, params, csInitCallback, csCallback) {
