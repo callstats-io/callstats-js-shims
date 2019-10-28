@@ -433,7 +433,6 @@ var CallstatsAmazonShim = function() {
   }
 
   function sendCustomStats(stats) {
-    console.log('sending custom stats ', stats);
     CallstatsAmazonShim.callstats.sendCustomStats(null, 
       confId, stats);
   }
