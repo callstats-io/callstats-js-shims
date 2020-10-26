@@ -1,4 +1,4 @@
-/*! callstats Amazon Connect Shim version = 1.3.2 */
+/*! callstats Amazon Connect Shim version = 1.4.0 */
 
 function getTimestamp() {
   if (!window || !window.performance || !window.performance.now) {
@@ -161,6 +161,7 @@ class VoiceActivityDetection {
 };
 
 var CallstatsAmazonShim = function() {
+  var csioPc1 = null;
   var csioPc = null;
   var confId;
   var SoftphoneErrorTypes;
@@ -262,9 +263,23 @@ var CallstatsAmazonShim = function() {
     if (!confId) {
       confId = CallstatsAmazonShim.localUserID + ":" + CallstatsAmazonShim.remoteId;
     }
+
     if (!callDetails.callType) {
       callDetails.callType = contact.isInbound()?"inbound":"outbound";
     }
+
+    try {
+      const fabricAttributes = {
+          remoteEndpointType:   CallstatsAmazonShim.callstats.endpointType.server,
+        };
+      if (csioPc) {
+        CallstatsAmazonShim.callstats.addNewFabric(csioPc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex,
+          confId, fabricAttributes);
+      }
+    } catch(error) {
+      console.log('addNewFabric error ', error);
+    }
+
     const contactQueueInfo = contact.getQueue();
     if (contactQueueInfo) {
       callDetails.contactQueue = contactQueueInfo.name;
@@ -306,6 +321,15 @@ var CallstatsAmazonShim = function() {
         CallstatsAmazonShim.callstats.sendCustomEvent(csioPc, confId, [event]);
         isConferenceSummarySent = true;
       }
+      if (confId) {
+        if (csioPc1) {
+          csioPc = csioPc1;
+          csioPc1 = null;
+        } else {
+          csioPc = null;
+        }
+      } 
+      confId = null;
     });
 
     contact.onAccepted(function() {
@@ -504,21 +528,30 @@ var CallstatsAmazonShim = function() {
     if (!pc) {
       return;
     }
-    csioPc = pc; 
+
     isCallDetailsSent = false;
     isConferenceSummarySent = false;
     pcCreationTime = 0;
     ringingTime = 0;
     pstnTime = 0;
     isCallForwarded = false;
+    
 
-    const fabricAttributes = {
-      remoteEndpointType:   CallstatsAmazonShim.callstats.endpointType.server,
-    };
-    try {
+    if (csioPc) {
+      csioPc1 = pc;
+    } else {
+      csioPc = pc;
       pcCreationTime = getTimestamp();
-      CallstatsAmazonShim.callstats.addNewFabric(csioPc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex,
-        confId, fabricAttributes);
+    }
+
+    try {
+      const fabricAttributes = {
+          remoteEndpointType:   CallstatsAmazonShim.callstats.endpointType.server,
+        };
+      if (confId) {
+        CallstatsAmazonShim.callstats.addNewFabric(csioPc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex,
+          confId, fabricAttributes);
+      }
     } catch(error) {
       console.log('addNewFabric error ', error);
     }
