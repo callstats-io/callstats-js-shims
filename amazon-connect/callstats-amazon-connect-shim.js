@@ -1,4 +1,4 @@
-/*! callstats Amazon Connect Shim version = 1.4.0 */
+/*! callstats Amazon Connect Shim version = 1.4.1 */
 
 function getTimestamp() {
   if (!window || !window.performance || !window.performance.now) {
@@ -319,6 +319,8 @@ var CallstatsAmazonShim = function() {
           isCallForwarded: isCallForwarded,
         }
         CallstatsAmazonShim.callstats.sendCustomEvent(csioPc, confId, [event]);
+        CallstatsAmazonShim.callstats.sendFabricEvent(csioPc,
+          CallstatsAmazonShim.callstats.fabricEvent.fabricTerminated, confId);
         isConferenceSummarySent = true;
       }
       if (confId) {
