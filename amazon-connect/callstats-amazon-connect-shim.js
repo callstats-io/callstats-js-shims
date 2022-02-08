@@ -1,4 +1,4 @@
-/*! callstats Amazon Connect Shim version = 1.4.1 */
+/*! callstats Amazon Connect Shim version = 1.5.0 */
 
 function getTimestamp() {
   if (!window || !window.performance || !window.performance.now) {
@@ -523,6 +523,15 @@ var CallstatsAmazonShim = function() {
           CallstatsAmazonShim.callstats.sendCallDetails(csioPc, conferenceId, callDetails);
           break;
       }
+    } else {
+      CallstatsAmazonShim.callstats.reportError(csioPc, conferenceId, CallstatsAmazonShim.callstats.webRTCFunctions.signalingError, "SoftphoneError: Other Softphone error" + error.errorType);
+      CallstatsAmazonShim.callstats.sendCallDetails(csioPc, conferenceId, callDetails);
+    }
+    if (csioPc1) {
+      csioPc = csioPc1;
+      csioPc1 = null;
+    } else {
+      csioPc = null;
     }
   }
 
