@@ -271,7 +271,7 @@ var CallstatsAmazonShim = function() {
       const fabricAttributes = {
           remoteEndpointType:   CallstatsAmazonShim.callstats.endpointType.server,
         };
-      if (csioPc) {
+      if (csioPc && csioPc.signalingState !== 'closed') {
         CallstatsAmazonShim.callstats.addNewFabric(csioPc, CallstatsAmazonShim.remoteId, CallstatsAmazonShim.callstats.fabricUsage.multiplex,
           confId, fabricAttributes);
       }
@@ -323,6 +323,7 @@ var CallstatsAmazonShim = function() {
         isConferenceSummarySent = true;
       }
       confId = null;
+      csioPc = null;
     });
 
     contact.onAccepted(function() {
